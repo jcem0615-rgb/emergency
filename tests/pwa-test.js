@@ -191,7 +191,7 @@ const ok = (n, c, extra = '') => { results.push([c ? 'PASS' : 'FAIL', n, extra])
   // ---------- 6. Reconnect -> automatic transmission ----------
   await ctx.setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(1800);   // connectivity probe + flush
   const flushed = await page.evaluate(() => ({
     queued: state.incidents.filter(i => i.offlineQueued).length,
     log: state.auditLogs.slice(0, 4).map(l => l.source),

@@ -2257,11 +2257,38 @@
       }
     }
 
-    function flushOfflineQueue() {
-      // A background-sync wake-up can arrive before the device is genuinely back
-      // online. Never report a report as delivered until it really can be.
-      if (!navigator.onLine) return;
+    // navigator.onLine only says the device thinks it has a link, and a
+    // background-sync wake-up can arrive before one really exists. A real
+    // deployment confirms delivery by POSTing the report; here we at least
+    // confirm the network is reachable before marking anything as delivered.
+    // HEAD bypasses the service worker's GET cache, so this cannot be answered
+    // from the cache while offline.
+    async function hasLiveConnectivity() {
+      if (!navigator.onLine) return false;
+      try {
+        await fetch('manifest.webmanifest', { method: 'HEAD', cache: 'no-store' });
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
 
+    let flushInFlight = false;
+
+    async function flushOfflineQueue() {
+      if (flushInFlight) return;
+      if (!state.incidents.some(i => i.offlineQueued)) return;
+
+      flushInFlight = true;
+      try {
+        if (!(await hasLiveConnectivity())) return;
+        deliverQueuedReports();
+      } finally {
+        flushInFlight = false;
+      }
+    }
+
+    function deliverQueuedReports() {
       const queued = state.incidents.filter(i => i.offlineQueued);
       if (!queued.length) return;
 

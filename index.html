@@ -2,46 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>E-mergency | Integrated Multi-Agency Emergency Response System</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #090d16;
-      color: #f8fafc;
-    }
-    .font-mono-code {
-      font-family: 'JetBrains Mono', monospace;
-    }
-    @keyframes pulse-ring {
-      0% { transform: scale(0.85); opacity: 0.9; }
-      70% { transform: scale(1.7); opacity: 0; }
-      100% { transform: scale(1.7); opacity: 0; }
-    }
-    .animate-pulse-ring {
-      animation: pulse-ring 1.6s cubic-bezier(0.24, 0, 0.38, 1) infinite;
-    }
-    @keyframes siren-flash {
-      0%, 100% { background-color: rgba(220, 38, 38, 0.18); border-color: rgba(239, 68, 68, 0.8); }
-      50% { background-color: rgba(37, 99, 235, 0.18); border-color: rgba(59, 130, 246, 0.8); }
-    }
-    .animate-siren {
-      animation: siren-flash 0.9s infinite;
-    }
-    /* Custom subtle scrollbars */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
-  </style>
+  <meta name="description" content="One-tap SOS to PNP, BFP, MDRRMO, PDRRMO, Ambulance and the nearest hospital, with locked GPS and timestamp. Installable and works offline." />
+
+  <!-- Progressive Web App -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#090d16" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="E-mergency" />
+  <meta name="application-name" content="E-mergency" />
+
+  <!-- Styles, fonts and icons are self-hosted: no CDN, so the app renders offline -->
+  <link rel="stylesheet" href="assets/app.css" />
+  <script src="assets/lucide.min.js" defer></script>
 </head>
 <body class="min-h-screen flex flex-col overflow-x-hidden">
 
   <!-- TOP GLOBAL SIMULATION BAR -->
-  <header class="bg-slate-950 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50">
+  <header class="safe-area-header bg-slate-950 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-rose-700 flex items-center justify-center shadow-lg shadow-red-900/40 relative">
         <i data-lucide="shield-alert" class="w-5 h-5 text-white"></i>
@@ -52,7 +37,8 @@
           <h1 class="font-black text-base sm:text-lg tracking-tight text-white">
             <span class="text-red-500">E</span>-mergency
           </h1>
-          <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Live Network</span>
+          <span id="net-status-badge" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Live Network</span>
+          <span id="pwa-mode-badge" class="hidden text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">Installed</span>
         </div>
         <p class="text-[11px] text-slate-400 hidden sm:block">Integrated PNP • BFP • MDRRMO • PDRRMO • Ambulance • Nearest Hospital</p>
       </div>
@@ -65,6 +51,11 @@
         <button onclick="setLayoutMode('resident')" id="btn-mode-resident" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Resident App</button>
         <button onclick="setLayoutMode('command')" id="btn-mode-command" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Command Center</button>
       </div>
+
+      <button onclick="promptPwaInstall()" id="btn-pwa-install" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-600 to-blue-700 border border-sky-400/40 text-white hover:brightness-110 transition" title="Install E-mergency on this device">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        <span>Install App</span>
+      </button>
 
       <button onclick="toggleAudioSiren()" id="btn-audio-toggle" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 transition" title="Toggle Web Audio Emergency Siren">
         <i data-lucide="volume-2" id="icon-audio" class="w-4 h-4 text-emerald-400"></i>
@@ -270,6 +261,17 @@
 
             <!-- ACTIVE SOS STATE: LIVE RADAR + LOCKED GPS + OPTIONAL PHOTO/VIDEO UPLOAD -->
             <div id="res-active-sos-panel" class="hidden space-y-3">
+              <!-- OFFLINE TRANSMISSION QUEUE NOTICE -->
+              <div id="res-offline-queue-banner" class="hidden p-3 rounded-2xl bg-amber-500/15 border border-amber-500/50 space-y-1.5">
+                <div class="flex items-center gap-2 text-amber-300 font-extrabold text-xs uppercase">
+                  <i data-lucide="cloud-off" class="w-4 h-4"></i>
+                  <span>No Signal — SOS Queued On Device</span>
+                </div>
+                <p id="res-offline-queue-text" class="text-[11px] text-amber-100/90 leading-snug">
+                  Your locked GPS and timestamp are saved on this phone. The report transmits automatically the moment signal returns.
+                </p>
+              </div>
+
               <!-- Active Status Card -->
               <div class="p-3.5 rounded-2xl bg-red-600/20 border border-red-500/60 space-y-2">
                 <div class="flex items-center justify-between">
@@ -285,7 +287,7 @@
                 <div class="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1 text-[11px]">
                   <div class="flex items-center justify-between">
                     <span class="text-slate-400">Locked GPS Snapshot:</span>
-                    <span class="text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> Saved on Server</span>
+                    <span id="res-gps-lock-dest" class="text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> <span>Saved on Server</span></span>
                   </div>
                   <div id="res-locked-coords" class="font-mono-code text-slate-200">15.9208° N, 120.4152° E</div>
                   <div id="res-locked-timestamp" class="text-slate-400">Date/Time: --</div>
@@ -669,12 +671,61 @@
             <i data-lucide="activity" class="w-4 h-4 text-sky-400"></i>
             <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-300">Live Multi-Agency Notification & Audit Stream</h3>
           </div>
-          <span class="text-[10px] font-mono-code text-slate-500">WebSockets + Push + SMS Fallback Active</span>
+          <span class="text-[10px] font-mono-code text-slate-500">Service Worker + Push + SMS Fallback + Offline Queue</span>
         </div>
         <div id="audit-log-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1 text-xs font-mono-code"></div>
       </div>
     </section>
   </main>
+
+  <!-- SERVICE WORKER UPDATE AVAILABLE -->
+  <div id="pwa-update-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-900 border border-sky-500/50 shadow-2xl">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div class="p-1.5 rounded-lg bg-sky-500/20 text-sky-300 shrink-0">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+      </div>
+      <div class="min-w-0">
+        <div class="text-xs font-extrabold text-white">New version ready</div>
+        <div class="text-[11px] text-slate-400 truncate">Reload to update the installed app.</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button onclick="dismissUpdateBanner()" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 hover:text-white transition">Later</button>
+      <button id="btn-pwa-reload" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-extrabold transition">Reload</button>
+    </div>
+  </div>
+
+  <!-- MANUAL INSTALL INSTRUCTIONS (iOS / browsers without an install prompt) -->
+  <div id="ios-install-sheet" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl">
+      <div class="px-4 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="smartphone" class="w-4 h-4 text-sky-400"></i>
+          <h2 class="text-sm font-extrabold text-white">Install E-mergency</h2>
+        </div>
+        <button onclick="closeIosInstallSheet()" class="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-4 space-y-3 text-xs text-slate-300">
+        <p class="leading-relaxed">Add E-mergency to your home screen so it launches full screen and keeps working without a signal.</p>
+        <ol class="space-y-2">
+          <li class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-sky-500 text-white font-black text-[10px] flex items-center justify-center shrink-0">1</span>
+            <span>Tap the <strong>Share</strong> button in your browser's toolbar.</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-sky-500 text-white font-black text-[10px] flex items-center justify-center shrink-0">2</span>
+            <span>Choose <strong>Add to Home Screen</strong>.</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-sky-500 text-white font-black text-[10px] flex items-center justify-center shrink-0">3</span>
+            <span>Confirm with <strong>Add</strong>. Launch it once while online so the app caches itself for offline use.</span>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
 
   <!-- OFFICIAL INCIDENT BLOTTER & CITATION RECORDS MODAL -->
   <div id="blotter-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -796,6 +847,14 @@
       navDrawerOpen: false,
       auditLogs: []
     };
+
+    // Pristine copy of the seeded scenario, taken before any saved session is
+    // restored, so "Reset Demo" can always return to a known-good state.
+    const SEED_SNAPSHOT = JSON.parse(JSON.stringify({
+      incidents: state.incidents,
+      resident: state.resident,
+      activeIncidentId: state.activeIncidentId
+    }));
 
     // =========================================================================
     // 2. ROAD-NETWORK WAYPOINT GENERATOR FOR TURN-BY-TURN ROUTING
@@ -982,6 +1041,7 @@
       state.auditLogs.unshift({ time: timeStr, source, message, level });
       renderAuditLogs();
       showToast(source, message, level);
+      persistState();
     }
 
     function showToast(title, message, level = 'info') {
@@ -1040,23 +1100,11 @@
     // =========================================================================
     function toggleDeviceGPS() {
       state.deviceGpsOn = !state.deviceGpsOn;
-      const btn = document.getElementById('btn-toggle-gps');
-      const dot = document.getElementById('gps-indicator-dot');
-      const sub = document.getElementById('gps-status-sub');
+      renderGpsUi();
 
       if (state.deviceGpsOn) {
-        btn.textContent = 'GPS: ON';
-        btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition';
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
-        sub.textContent = `${state.resident.lat.toFixed(4)}° N, ${state.resident.lng.toFixed(4)}° E`;
-        sub.className = 'text-[10px] text-emerald-400 font-mono-code';
         addAuditLog('DEVICE TELEMETRY', 'Resident device GPS turned ON.', 'info');
       } else {
-        btn.textContent = 'GPS: OFF';
-        btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 transition';
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-        sub.textContent = 'LOCATION DISABLED ON DEVICE';
-        sub.className = 'text-[10px] text-red-400 font-mono-code font-bold';
         addAuditLog('ANTI-TAMPER GPS', 'Resident turned OFF device location! Previously locked report coordinates remain permanently pinned on Command Map.', 'warning');
       }
 
@@ -1127,24 +1175,8 @@
         document.getElementById('chk-ordinance-waiver').checked = state.resident.verified;
       }
 
-      const btn = document.getElementById('btn-sim-verify-toggle');
-      const pill = document.getElementById('res-verified-pill');
-      const unverifiedBanner = document.getElementById('res-unverified-banner');
-
-      if (state.resident.verified) {
-        btn.textContent = 'Status: VERIFIED';
-        btn.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-        pill.innerHTML = `<i data-lucide="badge-check" class="w-3 h-3"></i> Verified`;
-        pill.className = 'inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-        unverifiedBanner.classList.add('hidden');
-      } else {
-        btn.textContent = 'Status: UNVERIFIED';
-        btn.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
-        pill.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3"></i> Unverified`;
-        pill.className = 'inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
-        unverifiedBanner.classList.remove('hidden');
-      }
-      lucide.createIcons();
+      renderVerificationUi();
+      persistState();
     }
 
     function updateResidentProfile() {
@@ -1153,6 +1185,7 @@
       state.resident.medical = document.getElementById('inp-res-medical').value || 'O+';
       state.resident.address = document.getElementById('inp-res-address').value || 'Malasiqui, Pangasinan';
       document.getElementById('res-header-name').textContent = state.resident.name;
+      persistState();
     }
 
     function triggerEmergency(agencyCode, agencyLabel) {
@@ -1213,14 +1246,25 @@
       document.getElementById('res-locked-timestamp').textContent = `Locked: ${timestamp}`;
       document.getElementById('res-media-preview-box').classList.add('hidden');
 
-      pushToResidentPhone(`E-mergency SOS Sent! GPS (${lockedLat}, ${lockedLng}) & timestamp permanently locked.`);
+      // Offline-first: with no connectivity the report is held on the device with
+      // its locked GPS and timestamp, then transmitted the moment signal returns.
+      newIncident.offlineQueued = !navigator.onLine;
 
-      // Trigger Cascading Notification Engine on Command Center
-      startCommandSiren();
-      startSmsEscalationCountdown(newIncident);
+      if (newIncident.offlineQueued) {
+        queueOfflineReport(newIncident);
+        pushToResidentPhone(`No signal — SOS held on this device. GPS (${lockedLat}, ${lockedLng}) & timestamp locked; it sends itself automatically.`);
+        addAuditLog('OFFLINE QUEUE', `Device has no connectivity. ${newId} stored on-device with locked GPS/timestamp, awaiting network to reach ${agencyCode} dispatch.`, 'warning');
+      } else {
+        pushToResidentPhone(`E-mergency SOS Sent! GPS (${lockedLat}, ${lockedLng}) & timestamp permanently locked.`);
 
-      addAuditLog(`${agencyCode} DISPATCH`, `E-MERGENCY ALERT (${newId}) from Verified Resident ${newIncident.reporterName} at ${lockedLat}, ${lockedLng}. Siren & Push triggered!`, 'danger');
+        // Trigger Cascading Notification Engine on Command Center
+        startCommandSiren();
+        startSmsEscalationCountdown(newIncident);
 
+        addAuditLog(`${agencyCode} DISPATCH`, `E-MERGENCY ALERT (${newId}) from Verified Resident ${newIncident.reporterName} at ${lockedLat}, ${lockedLng}. Siren & Push triggered!`, 'danger');
+      }
+
+      updateOfflineQueueUI();
       renderCommandCenter();
     }
 
@@ -1260,7 +1304,7 @@
       const file = event.target.files[0];
       if (!file) return;
       const url = URL.createObjectURL(file);
-      const inc = state.incidents.find(i => i.id === state.activeIncidentId);
+      const inc = getResidentIncident();
       if (!inc) return;
 
       inc.evidence = {
@@ -1275,7 +1319,7 @@
     }
 
     function attachSampleEvidence(type) {
-      const inc = state.incidents.find(i => i.id === state.activeIncidentId);
+      const inc = getResidentIncident();
       if (!inc) return;
 
       inc.evidence = {
@@ -1312,8 +1356,17 @@
     // =========================================================================
     // 6. COMMAND CENTER ACTIONS (WE ARE COMING, ESCALATE, HOSPITAL, FINE)
     // =========================================================================
+    // The resident's own current report — including one still queued offline.
+    function getResidentIncident() {
+      return state.incidents.find(i => i.id === state.activeIncidentId) || null;
+    }
+
+    // What the dispatcher can act on. A report queued on the resident's device
+    // has not reached dispatch yet, so it is never the dispatcher's selection.
     function getSelectedIncident() {
-      return state.incidents.find(i => i.id === state.activeIncidentId) || state.incidents[0];
+      const selected = state.incidents.find(i => i.id === state.activeIncidentId);
+      if (selected && !selected.offlineQueued) return selected;
+      return state.incidents.find(i => !i.offlineQueued) || null;
     }
 
     function acknowledgeSelectedIncident() {
@@ -1443,16 +1496,18 @@
     }
 
     function renderCommandCenter() {
+      // Reports still queued on a resident's device have not reached dispatch.
+      const received = state.incidents.filter(i => !i.offlineQueued);
       const filtered = state.agencyFilter === 'ALL'
-        ? state.incidents
-        : state.incidents.filter(i => {
+        ? received
+        : received.filter(i => {
             if (state.agencyFilter === 'PDRRMO') return i.escalatedPDRRMO || i.agency === 'MDRRMO' || i.agency === 'SOS';
             if (state.agencyFilter === 'HOSPITAL') return i.hospitalNotified || i.agency === 'AMBULANCE' || i.agency === 'SOS';
             return i.agency === state.agencyFilter || i.agency === 'SOS';
           });
 
       // Siren Banner visibility
-      const pendingInc = state.incidents.find(i => i.status === 'PENDING');
+      const pendingInc = received.find(i => i.status === 'PENDING');
       const sirenBanner = document.getElementById('cmd-siren-banner');
       if (pendingInc) {
         sirenBanner.classList.remove('hidden');
@@ -1479,9 +1534,11 @@
         `;
       }).join('');
 
+      document.getElementById('blotter-count').textContent = state.incidents.length;
+
       // Render Selected Caller Dossier
       const inc = getSelectedIncident();
-      if (!inc) return;
+      if (!inc) { persistState(); return; }
 
       document.getElementById('dos-id').textContent = inc.id;
       document.getElementById('dos-agency-title').textContent = inc.agencyLabel;
@@ -1551,7 +1608,7 @@
         evViewer.textContent = 'No media uploaded by resident (Optional)';
       }
 
-      document.getElementById('blotter-count').textContent = state.incidents.length;
+      persistState();
     }
 
     function selectIncident(id) {
@@ -1721,6 +1778,7 @@
       const pulse = (Math.sin(Date.now() / 220) + 1) / 2;
 
       state.incidents.forEach(inc => {
+        if (inc.offlineQueued) return; // not yet transmitted to dispatch
         const px = inc.mapX * w;
         const py = inc.mapY * h;
         const isSelected = inc.id === state.activeIncidentId;
@@ -1863,7 +1921,7 @@
         ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
       });
 
-      const inc = state.incidents.find(i => i.id === state.activeIncidentId);
+      const inc = getResidentIncident();
       if (!inc) return;
 
       // Dispatched Unit Moving Along Road Polyline Toward Resident
@@ -1936,9 +1994,10 @@
           <td class="py-2.5 px-3 font-mono-code text-emerald-400">${inc.responseSeconds ? inc.responseSeconds + 's' : '--'}</td>
           <td class="py-2.5 px-3">
             <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              inc.offlineQueued ? 'bg-sky-500/20 text-sky-300' :
               inc.status === 'FALSE_REPORT' ? 'bg-red-500/20 text-red-300' :
               inc.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
-            }">${inc.status}</span>
+            }">${inc.offlineQueued ? 'QUEUED OFFLINE' : inc.status}</span>
           </td>
         </tr>
       `).join('');
@@ -1952,7 +2011,8 @@
     function exportBlotterCSV() {
       const headers = ['Incident_ID', 'Agency', 'Reporter_Name', 'Phone', 'Locked_Lat', 'Locked_Lng', 'Reported_At', 'Response_Seconds', 'Status'];
       const rows = state.incidents.map(i => [
-        i.id, i.agency, `"${i.reporterName}"`, `"${i.reporterPhone}"`, i.lockedLat, i.lockedLng, `"${i.reportedAt}"`, i.responseSeconds || 'N/A', i.status
+        i.id, i.agency, `"${i.reporterName}"`, `"${i.reporterPhone}"`, i.lockedLat, i.lockedLng,
+        `"${i.reportedAt}"`, i.responseSeconds || 'N/A', i.offlineQueued ? 'QUEUED_OFFLINE' : i.status
       ]);
       const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
@@ -1998,16 +2058,406 @@
     function resetSimulation() {
       stopCommandSiren();
       if (state.smsTimerInterval) clearInterval(state.smsTimerInterval);
-      state.resident.suspended = false;
-      state.resident.verified = true;
+
+      // Restore the pristine seeded scenario and drop the saved session.
+      const seed = JSON.parse(JSON.stringify(SEED_SNAPSHOT));
+      state.incidents = seed.incidents;
+      state.activeIncidentId = seed.activeIncidentId;
+      Object.assign(state.resident, seed.resident);
+      state.auditLogs = [];
+      state.selectedQuickTag = '';
       state.deviceGpsOn = true;
+      try { localStorage.removeItem(STORE_KEY); } catch (e) { /* storage unavailable */ }
+
+      // Resident phone back to idle
       document.getElementById('res-fine-banner').classList.add('hidden');
       document.getElementById('res-active-sos-panel').classList.add('hidden');
       document.getElementById('res-panic-buttons-grid').classList.remove('hidden');
       document.getElementById('resident-push-banner').classList.add('hidden');
+      document.getElementById('res-offline-queue-banner').classList.add('hidden');
       document.getElementById('hospital-er-banner').classList.add('hidden');
+      document.getElementById('res-media-preview-box').classList.add('hidden');
+      document.querySelectorAll('.quick-tag').forEach(el => {
+        el.classList.remove('bg-red-600', 'text-white', 'border-red-400');
+        el.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
+      });
+
+      applyRestoredUi();
       addAuditLog('SYSTEM', 'Simulation workspace reset to ready state.', 'info');
       renderCommandCenter();
+    }
+
+    // =========================================================================
+    // 11. PWA RUNTIME — INSTALL, SERVICE WORKER, OFFLINE QUEUE, SESSION STORAGE
+    // =========================================================================
+    const STORE_KEY = 'emergency:session:v1';
+    let deferredInstallPrompt = null;
+    let pendingUpdateReload = false;
+
+    // --- Shared UI renderers (used by both live controls and session restore) --
+    function renderGpsUi() {
+      const btn = document.getElementById('btn-toggle-gps');
+      const dot = document.getElementById('gps-indicator-dot');
+      const sub = document.getElementById('gps-status-sub');
+      if (state.deviceGpsOn) {
+        btn.textContent = 'GPS: ON';
+        btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+        sub.textContent = `${state.resident.lat.toFixed(4)}° N, ${state.resident.lng.toFixed(4)}° E`;
+        sub.className = 'text-[10px] text-emerald-400 font-mono-code';
+      } else {
+        btn.textContent = 'GPS: OFF';
+        btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 transition';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
+        sub.textContent = 'LOCATION DISABLED ON DEVICE';
+        sub.className = 'text-[10px] text-red-400 font-mono-code font-bold';
+      }
+    }
+
+    function renderVerificationUi() {
+      const btn = document.getElementById('btn-sim-verify-toggle');
+      const pill = document.getElementById('res-verified-pill');
+      const unverifiedBanner = document.getElementById('res-unverified-banner');
+      document.getElementById('chk-ordinance-waiver').checked = state.resident.verified;
+
+      if (state.resident.verified) {
+        btn.textContent = 'Status: VERIFIED';
+        btn.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        pill.innerHTML = `<i data-lucide="badge-check" class="w-3 h-3"></i> Verified`;
+        pill.className = 'inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        unverifiedBanner.classList.add('hidden');
+      } else {
+        btn.textContent = 'Status: UNVERIFIED';
+        btn.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        pill.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3"></i> Unverified`;
+        pill.className = 'inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
+        unverifiedBanner.classList.remove('hidden');
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // --- Session storage ------------------------------------------------------
+    // An installed app gets closed and relaunched. Incidents, the blotter and
+    // anything queued offline have to survive that, so the session is mirrored
+    // into localStorage. Object URLs cannot, so uploaded media degrades to its
+    // watermarked record.
+    function persistState() {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify({
+          v: 1,
+          savedAt: new Date().toISOString(),
+          activeIncidentId: state.activeIncidentId,
+          resident: state.resident,
+          auditLogs: state.auditLogs.slice(0, 40),
+          incidents: state.incidents.slice(0, 50).map(inc => {
+            const copy = Object.assign({}, inc);
+            if (copy.evidence && !copy.evidence.isSample) {
+              copy.evidence = {
+                type: copy.evidence.type,
+                isSample: true,
+                fileName: copy.evidence.fileName,
+                watermark: copy.evidence.watermark
+              };
+            }
+            return copy;
+          })
+        }));
+      } catch (e) {
+        // Private mode or a full quota: the demo keeps working in memory.
+      }
+    }
+
+    function restoreState() {
+      let raw = null;
+      try { raw = localStorage.getItem(STORE_KEY); } catch (e) { return; }
+      if (!raw) return;
+      try {
+        const saved = JSON.parse(raw);
+        if (!saved || saved.v !== 1) return;
+        if (Array.isArray(saved.incidents) && saved.incidents.length) state.incidents = saved.incidents;
+        if (Array.isArray(saved.auditLogs)) state.auditLogs = saved.auditLogs;
+        if (saved.resident) Object.assign(state.resident, saved.resident);
+        if (saved.activeIncidentId) state.activeIncidentId = saved.activeIncidentId;
+      } catch (e) {
+        try { localStorage.removeItem(STORE_KEY); } catch (err) { /* ignore */ }
+      }
+    }
+
+    // Paint the resident phone to match whatever session was restored.
+    function applyRestoredUi() {
+      document.getElementById('inp-res-name').value = state.resident.name;
+      document.getElementById('inp-res-phone').value = state.resident.phone;
+      document.getElementById('inp-res-medical').value = state.resident.medical;
+      document.getElementById('inp-res-address').value = state.resident.address;
+      document.getElementById('res-header-name').textContent = state.resident.name;
+
+      renderVerificationUi();
+      renderGpsUi();
+      renderAuditLogs();
+
+      const fineBanner = document.getElementById('res-fine-banner');
+      state.resident.suspended
+        ? fineBanner.classList.remove('hidden')
+        : fineBanner.classList.add('hidden');
+
+      // Re-open the active SOS screen if the resident has a live report.
+      const mine = state.incidents.find(i =>
+        i.reporterName === state.resident.name &&
+        (i.offlineQueued || i.status === 'PENDING' || i.status === 'DISPATCHED'));
+
+      if (mine) {
+        state.activeIncidentId = mine.id;
+        document.getElementById('res-panic-buttons-grid').classList.add('hidden');
+        document.getElementById('res-active-sos-panel').classList.remove('hidden');
+        document.getElementById('res-active-agency-badge').textContent = `${mine.agency} EMERGENCY ACTIVE`;
+        document.getElementById('res-active-id').textContent = mine.id;
+        document.getElementById('res-locked-coords').textContent = `${mine.lockedLat}° N, ${mine.lockedLng}° E`;
+        document.getElementById('res-locked-timestamp').textContent = `Locked: ${mine.reportedAt}`;
+        document.getElementById('res-dispatch-status-text').textContent =
+          mine.status === 'DISPATCHED' ? `${mine.agency} Response Unit 01 IS ON THE WAY!`
+                                       : `Alerting ${mine.agencyLabel} & MDRRMO...`;
+        if (mine.evidence) updateEvidencePreviews(mine);
+      } else {
+        document.getElementById('res-active-sos-panel').classList.add('hidden');
+        document.getElementById('res-panic-buttons-grid').classList.remove('hidden');
+      }
+
+      updateOfflineQueueUI();
+    }
+
+    // --- Offline SOS queue ----------------------------------------------------
+    function updateOfflineQueueUI() {
+      const banner = document.getElementById('res-offline-queue-banner');
+      const lockDest = document.getElementById('res-gps-lock-dest').lastElementChild;
+      const queued = state.incidents.filter(i => i.offlineQueued);
+      if (!queued.length) {
+        banner.classList.add('hidden');
+        lockDest.textContent = 'Saved on Server';
+        return;
+      }
+      lockDest.textContent = 'Saved on Device';
+      const mine = queued.find(i => i.id === state.activeIncidentId) || queued[0];
+      banner.classList.remove('hidden');
+      document.getElementById('res-offline-queue-text').textContent =
+        `${mine.id} is stored on this device with its locked GPS (${mine.lockedLat}, ${mine.lockedLng}) and trigger time ${mine.reportedAt}. ` +
+        `${queued.length > 1 ? queued.length + ' queued reports transmit' : 'It transmits'} automatically when signal returns.`;
+      document.getElementById('res-dispatch-status-text').textContent = 'NO SIGNAL — SOS QUEUED ON DEVICE';
+      document.getElementById('res-radar-unit-label').textContent = 'Holding report until the network returns...';
+      document.getElementById('res-radar-eta').textContent = 'QUEUED';
+    }
+
+    function queueOfflineReport(incident) {
+      persistState();
+      // Ask the browser to wake the service worker as soon as connectivity is
+      // back, even if the app is in the background by then.
+      if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        navigator.serviceWorker.ready
+          .then(reg => reg.sync.register('emergency-sos-sync'))
+          .catch(() => { /* falls back to the window 'online' event */ });
+      }
+    }
+
+    function flushOfflineQueue() {
+      // A background-sync wake-up can arrive before the device is genuinely back
+      // online. Never report a report as delivered until it really can be.
+      if (!navigator.onLine) return;
+
+      const queued = state.incidents.filter(i => i.offlineQueued);
+      if (!queued.length) return;
+
+      // Oldest first: state.incidents is newest-first.
+      queued.slice().reverse().forEach(inc => {
+        inc.offlineQueued = false;
+        inc.transmittedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        state.activeIncidentId = inc.id;
+        addAuditLog('DELAYED TRANSMISSION',
+          `Connectivity restored — queued report ${inc.id} delivered to ${inc.agency} dispatch with its ORIGINAL locked GPS (${inc.lockedLat}, ${inc.lockedLng}) and trigger time ${inc.reportedAt}.`,
+          'danger');
+        if (inc.status === 'PENDING') startSmsEscalationCountdown(inc);
+      });
+
+      startCommandSiren();
+      pushToResidentPhone(`Signal restored — ${queued.length} queued SOS report${queued.length > 1 ? 's' : ''} delivered to Command Center.`);
+      document.getElementById('res-dispatch-status-text').textContent = 'SOS DELIVERED TO COMMAND CENTER';
+      document.getElementById('res-gps-lock-dest').lastElementChild.textContent = 'Saved on Server';
+      document.getElementById('res-radar-unit-label').textContent = 'Awaiting responder acknowledgement...';
+      document.getElementById('res-radar-eta').textContent = 'ETA: --';
+      updateOfflineQueueUI();
+      renderCommandCenter();
+    }
+
+    // --- Connectivity ---------------------------------------------------------
+    function updateNetworkStatusUI() {
+      const online = navigator.onLine;
+      const badge = document.getElementById('net-status-badge');
+      const signal = document.getElementById('phone-signal-badge');
+
+      if (online) {
+        badge.textContent = 'Live Network';
+        badge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+        signal.textContent = '5G';
+        signal.className = 'text-emerald-400 font-bold';
+      } else {
+        badge.textContent = 'Offline Mode';
+        badge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/40';
+        signal.textContent = 'NO SIGNAL';
+        signal.className = 'text-red-400 font-bold';
+      }
+    }
+
+    // --- Install ---------------------------------------------------------------
+    function isStandalone() {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             window.matchMedia('(display-mode: fullscreen)').matches ||
+             window.navigator.standalone === true;
+    }
+
+    function isIosDevice() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function showInstallAffordance(show) {
+      const btn = document.getElementById('btn-pwa-install');
+      show ? btn.classList.remove('hidden') : btn.classList.add('hidden');
+    }
+
+    async function promptPwaInstall() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        if (choice.outcome === 'accepted') {
+          showInstallAffordance(false);
+        } else {
+          showToast('INSTALL DISMISSED', 'You can install E-mergency later from your browser menu.', 'info');
+        }
+        return;
+      }
+      // iOS Safari and other browsers without beforeinstallprompt
+      document.getElementById('ios-install-sheet').classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function closeIosInstallSheet() {
+      document.getElementById('ios-install-sheet').classList.add('hidden');
+    }
+
+    // --- Service worker --------------------------------------------------------
+    function showUpdateBanner(worker) {
+      const banner = document.getElementById('pwa-update-banner');
+      banner.classList.remove('hidden');
+      banner.classList.add('flex');
+      if (window.lucide) lucide.createIcons();
+      document.getElementById('btn-pwa-reload').onclick = () => {
+        pendingUpdateReload = true;
+        if (worker) worker.postMessage({ type: 'SKIP_WAITING' });
+        else location.reload();
+      };
+    }
+
+    function dismissUpdateBanner() {
+      const banner = document.getElementById('pwa-update-banner');
+      banner.classList.add('hidden');
+      banner.classList.remove('flex');
+    }
+
+    async function registerServiceWorker() {
+      if (!('serviceWorker' in navigator) || location.protocol === 'file:') {
+        if (location.protocol === 'file:') {
+          showToast('SERVE OVER HTTP', 'Offline caching and install need the app served over http(s), not opened as a file.', 'warning');
+        }
+        return;
+      }
+      try {
+        const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
+
+        if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner(reg.waiting);
+
+        reg.addEventListener('updatefound', () => {
+          const incoming = reg.installing;
+          if (!incoming) return;
+          incoming.addEventListener('statechange', () => {
+            if (incoming.state === 'installed' && navigator.serviceWorker.controller) {
+              showUpdateBanner(incoming);
+            }
+          });
+        });
+
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'FLUSH_SOS_QUEUE') flushOfflineQueue();
+        });
+
+        // Only reload for an update the user asked for, never on first install.
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!pendingUpdateReload) return;
+          pendingUpdateReload = false;
+          location.reload();
+        });
+      } catch (err) {
+        console.warn('[E-mergency] Service worker registration failed:', err);
+      }
+    }
+
+    // --- Manifest shortcuts & launch parameters --------------------------------
+    function handleLaunchParams() {
+      const params = new URLSearchParams(location.search);
+      const view = params.get('view');
+
+      if (view === 'command') setLayoutMode('command');
+      else if (view === 'resident') setLayoutMode('resident');
+
+      if (params.get('panel') === 'blotter') openBlotterModal();
+
+      if (params.get('action') === 'sos') {
+        // Shortcuts open the SOS screen — they never dispatch on their own.
+        if (view !== 'command') setLayoutMode('resident');
+        switchResidentTab('panic');
+        const sosBtn = document.querySelector('#res-panic-buttons-grid button');
+        if (sosBtn) {
+          sosBtn.classList.add('ring-4', 'ring-amber-400');
+          setTimeout(() => sosBtn.classList.remove('ring-4', 'ring-amber-400'), 2600);
+        }
+        showToast('SOS SHORTCUT', 'Emergency screen ready. Press SOS to dispatch.', 'warning');
+      }
+    }
+
+    function initPwa() {
+      updateNetworkStatusUI();
+
+      window.addEventListener('online', () => {
+        updateNetworkStatusUI();
+        addAuditLog('CONNECTIVITY', 'Network restored on resident device. Flushing any queued emergency reports.', 'success');
+        flushOfflineQueue();
+      });
+
+      window.addEventListener('offline', () => {
+        updateNetworkStatusUI();
+        addAuditLog('CONNECTIVITY', 'Resident device lost network. SOS reports will be queued on-device with locked GPS until signal returns.', 'warning');
+      });
+
+      if (isStandalone()) {
+        document.getElementById('pwa-mode-badge').classList.remove('hidden');
+      }
+
+      window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        showInstallAffordance(true);
+      });
+
+      window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        showInstallAffordance(false);
+        document.getElementById('pwa-mode-badge').classList.remove('hidden');
+        addAuditLog('PWA INSTALLED', 'E-mergency installed on this device. It now launches full screen and works offline.', 'success');
+      });
+
+      // iOS has no install prompt event: offer the manual route instead.
+      if (isIosDevice() && !isStandalone()) showInstallAffordance(true);
+
+      registerServiceWorker();
+      handleLaunchParams();
     }
 
     // Map click selection
@@ -2038,9 +2488,12 @@
 
     // Boot
     window.addEventListener('DOMContentLoaded', () => {
+      restoreState();
+      applyRestoredUi();
       lucide.createIcons();
       addAuditLog('E-MERGENCY ONLINE', 'PNP, BFP, MDRRMO, PDRRMO, Ambulance & Hospital terminals connected.', 'success');
       renderCommandCenter();
+      initPwa();
       requestAnimationFrame(animateMaps);
     });
   </script>

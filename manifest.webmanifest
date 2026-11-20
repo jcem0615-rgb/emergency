@@ -1,0 +1,115 @@
+{
+  "id": "./",
+  "name": "E-mergency \u2014 Multi-Agency Emergency Response",
+  "short_name": "E-mergency",
+  "description": "One-tap SOS to PNP, BFP, MDRRMO, PDRRMO, Ambulance and the nearest hospital, with locked GPS and timestamp. Works offline.",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "orientation": "any",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "lang": "en-PH",
+  "dir": "ltr",
+  "categories": [
+    "utilities",
+    "government",
+    "medical",
+    "navigation"
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/wide-command-center.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Multi-agency dispatch map with live responder navigation"
+    },
+    {
+      "src": "screenshots/narrow-resident-sos.png",
+      "sizes": "412x915",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "One-tap resident SOS with locked GPS and timestamp"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Emergency SOS",
+      "short_name": "SOS",
+      "description": "Open the one-tap emergency dispatch screen",
+      "url": "./?view=resident&action=sos",
+      "icons": [
+        {
+          "src": "icons/shortcut-sos.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Command Center",
+      "short_name": "Dispatch",
+      "description": "Open the multi-agency dispatch map",
+      "url": "./?view=command",
+      "icons": [
+        {
+          "src": "icons/shortcut-command.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Incident Blotter",
+      "short_name": "Blotter",
+      "description": "Open the official LGU incident blotter",
+      "url": "./?view=command&panel=blotter",
+      "icons": [
+        {
+          "src": "icons/shortcut-blotter.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

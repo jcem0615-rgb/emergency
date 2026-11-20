@@ -1,0 +1,2048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>E-mergency | Integrated Multi-Agency Emergency Response System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #f8fafc;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.85); opacity: 0.9; }
+      70% { transform: scale(1.7); opacity: 0; }
+      100% { transform: scale(1.7); opacity: 0; }
+    }
+    .animate-pulse-ring {
+      animation: pulse-ring 1.6s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    }
+    @keyframes siren-flash {
+      0%, 100% { background-color: rgba(220, 38, 38, 0.18); border-color: rgba(239, 68, 68, 0.8); }
+      50% { background-color: rgba(37, 99, 235, 0.18); border-color: rgba(59, 130, 246, 0.8); }
+    }
+    .animate-siren {
+      animation: siren-flash 0.9s infinite;
+    }
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+
+  <!-- TOP GLOBAL SIMULATION BAR -->
+  <header class="bg-slate-950 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-rose-700 flex items-center justify-center shadow-lg shadow-red-900/40 relative">
+        <i data-lucide="shield-alert" class="w-5 h-5 text-white"></i>
+        <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-950"></span>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-black text-base sm:text-lg tracking-tight text-white">
+            <span class="text-red-500">E</span>-mergency
+          </h1>
+          <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Live Network</span>
+        </div>
+        <p class="text-[11px] text-slate-400 hidden sm:block">Integrated PNP • BFP • MDRRMO • PDRRMO • Ambulance • Nearest Hospital</p>
+      </div>
+    </div>
+
+    <!-- View Mode Switcher (Mobile Friendly) & Global Controls -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <div class="bg-slate-900 p-1 rounded-xl border border-slate-800 flex items-center text-xs font-semibold">
+        <button onclick="setLayoutMode('split')" id="btn-mode-split" class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-white transition">Split View</button>
+        <button onclick="setLayoutMode('resident')" id="btn-mode-resident" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Resident App</button>
+        <button onclick="setLayoutMode('command')" id="btn-mode-command" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Command Center</button>
+      </div>
+
+      <button onclick="toggleAudioSiren()" id="btn-audio-toggle" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 transition" title="Toggle Web Audio Emergency Siren">
+        <i data-lucide="volume-2" id="icon-audio" class="w-4 h-4 text-emerald-400"></i>
+        <span id="label-audio" class="hidden md:inline">Siren Audio: ON</span>
+      </button>
+
+      <button onclick="resetSimulation()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 transition">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        <span>Reset Demo</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- LIVE TOAST NOTIFICATION STREAM -->
+  <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-3 sm:p-4 max-w-[1800px] w-full mx-auto">
+
+    <!-- ===================================================================== -->
+    <!-- LEFT COLUMN: RESIDENT MOBILE EMERGENCY APP                            -->
+    <!-- ===================================================================== -->
+    <section id="panel-resident" class="lg:col-span-4 xl:col-span-4 flex flex-col items-center">
+      <div class="w-full max-w-[410px] bg-slate-950 rounded-[2.5rem] border-[5px] border-slate-800 shadow-2xl overflow-hidden flex flex-col h-[820px] relative">
+
+        <!-- Phone Top Status Bar & Device Simulation Controls -->
+        <div class="bg-slate-900 px-5 pt-3 pb-2 border-b border-slate-800/80">
+          <div class="flex items-center justify-between text-[11px] text-slate-400 font-medium mb-2">
+            <span id="phone-clock" class="font-mono-code text-slate-300">08:40 PM</span>
+            <div class="w-20 h-4 bg-black rounded-full mx-auto"></div>
+            <div class="flex items-center gap-1.5">
+              <span id="phone-signal-badge" class="text-emerald-400 font-bold">5G</span>
+              <i data-lucide="battery-charging" class="w-4 h-4 text-emerald-400"></i>
+            </div>
+          </div>
+
+          <!-- Anti-Location-Off Simulator Bar -->
+          <div class="bg-slate-950/90 rounded-xl p-2 border border-slate-800 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <div id="gps-indicator-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              <div>
+                <div class="text-[11px] font-bold text-slate-200 leading-tight">Device GPS / Location</div>
+                <div id="gps-status-sub" class="text-[10px] text-emerald-400 font-mono-code">15.9208° N, 120.4152° E</div>
+              </div>
+            </div>
+            <button onclick="toggleDeviceGPS()" id="btn-toggle-gps" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition">
+              GPS: ON
+            </button>
+          </div>
+        </div>
+
+        <!-- Resident App Header -->
+        <div class="px-5 py-3 bg-gradient-to-r from-slate-900 to-slate-950 border-b border-slate-800 flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-black tracking-tight text-white"><span class="text-red-500">E</span>-mergency</span>
+              <span class="text-[10px] text-slate-500">• Resident PWA</span>
+            </div>
+            <div class="font-extrabold text-sm text-white flex items-center gap-1.5 mt-0.5">
+              <span id="res-header-name">Juan Dela Cruz</span>
+              <span id="res-verified-pill" class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <i data-lucide="badge-check" class="w-3 h-3"></i> Verified
+              </span>
+            </div>
+          </div>
+          <!-- Silent Mode Toggle -->
+          <button onclick="toggleSilentMode()" id="btn-silent-mode" class="px-2.5 py-1.5 rounded-xl border border-slate-700 bg-slate-900 text-[11px] font-semibold text-slate-300 flex items-center gap-1 hover:border-slate-500 transition" title="Silent Panic Mode disables loud phone alarms during robbery/domestic threat">
+            <i data-lucide="bell-ring" id="icon-silent" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span id="label-silent">Loud</span>
+          </button>
+        </div>
+
+        <!-- Incoming Push Notification Banner inside Resident Phone -->
+        <div id="resident-push-banner" class="hidden mx-4 mt-3 p-3 rounded-2xl bg-blue-600/20 border border-blue-500/50 shadow-lg backdrop-blur-sm transition-all">
+          <div class="flex items-start gap-2.5">
+            <div class="p-1.5 rounded-lg bg-blue-500 text-white shrink-0 mt-0.5">
+              <i data-lucide="radio" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-300">Live Dispatch Alert</span>
+                <span id="res-push-time" class="text-[10px] text-slate-400 font-mono-code">Just now</span>
+              </div>
+              <p id="res-push-text" class="text-xs font-semibold text-white mt-0.5 leading-snug">Responder unit dispatched to your locked location.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resident App Tab Content Container -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+          <!-- TAB 1: PANIC & LIVE RADAR VIEW -->
+          <div id="res-tab-panic" class="space-y-4">
+
+            <!-- Fine / Account Suspension Alert Banner (Visible if flagged as False Report) -->
+            <div id="res-fine-banner" class="hidden p-3.5 rounded-2xl bg-red-950/90 border-2 border-red-500 text-red-100 space-y-2">
+              <div class="flex items-center gap-2 text-red-400 font-extrabold text-xs uppercase">
+                <i data-lucide="gavel" class="w-4 h-4"></i>
+                <span>Account Suspended — False Report Citation</span>
+              </div>
+              <p id="res-fine-details" class="text-xs leading-relaxed text-red-200">
+                Violation of Municipal Anti-Prank Ordinance. Fine of ₱5,000.00 issued to your verified ID record.
+              </p>
+              <button onclick="clearResidentSuspension()" class="w-full py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition">
+                Acknowledge Citation & Restore Demo Account
+              </button>
+            </div>
+
+            <!-- Unverified Blocker Warning -->
+            <div id="res-unverified-banner" class="hidden p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 space-y-2">
+              <div class="flex items-center gap-2 font-bold text-xs text-amber-300">
+                <i data-lucide="shield-question" class="w-4 h-4"></i>
+                <span>Identity Verification Required</span>
+              </div>
+              <p class="text-[11px] leading-relaxed">
+                To prevent prank calls and false dispatches, residents must complete 2-Tier ID + Selfie verification before triggering emergency buttons.
+              </p>
+              <button onclick="switchResidentTab('verify')" class="w-full py-2 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-xs hover:bg-amber-400 transition">
+                Complete Verification Now →
+              </button>
+            </div>
+
+            <!-- IDLE STATE: ONE-TAP EMERGENCY BUTTONS -->
+            <div id="res-panic-buttons-grid" class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">One-Tap Emergency Dispatch</span>
+                <span class="text-[10px] text-slate-500">Auto-locks GPS & Time</span>
+              </div>
+
+              <!-- Master SOS Button -->
+              <button onclick="triggerEmergency('SOS', 'ALL AGENCIES (CRITICAL SOS)')" class="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-4 text-left shadow-lg shadow-red-950/60 border border-red-400/30 hover:brightness-110 active:scale-[0.99] transition">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="inline-block px-2 py-0.5 rounded-md bg-black/30 text-[10px] font-extrabold uppercase tracking-wider text-red-100 mb-1">Multi-Agency Priority</span>
+                    <h2 class="text-xl font-black text-white tracking-tight">SOS EMERGENCY</h2>
+                    <p class="text-xs text-red-100/90 mt-0.5">Alerts PNP, BFP, MDRRMO & Ambulance simultaneously</p>
+                  </div>
+                  <div class="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shrink-0">
+                    <i data-lucide="siren" class="w-7 h-7 text-white"></i>
+                  </div>
+                </div>
+              </button>
+
+              <!-- 2x2 Agency Grid -->
+              <div class="grid grid-cols-2 gap-2.5">
+                <!-- PNP -->
+                <button onclick="triggerEmergency('PNP', 'Philippine National Police (PNP)')" class="p-3.5 rounded-2xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-left transition active:scale-[0.98] flex flex-col justify-between h-28">
+                  <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow">
+                    <i data-lucide="shield" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <div class="font-extrabold text-sm text-white">PNP Police</div>
+                    <div class="text-[11px] text-blue-200/80">Crime, Threat, Patrol</div>
+                  </div>
+                </button>
+
+                <!-- BFP -->
+                <button onclick="triggerEmergency('BFP', 'Bureau of Fire Protection (BFP)')" class="p-3.5 rounded-2xl bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/40 text-left transition active:scale-[0.98] flex flex-col justify-between h-28">
+                  <div class="w-9 h-9 rounded-xl bg-orange-600 flex items-center justify-center text-white shadow">
+                    <i data-lucide="flame" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <div class="font-extrabold text-sm text-white">BFP Fire</div>
+                    <div class="text-[11px] text-orange-200/80">Fire, Explosion, Hazmat</div>
+                  </div>
+                </button>
+
+                <!-- MDRRMO / PDRRMO -->
+                <button onclick="triggerEmergency('MDRRMO', 'MDRRMO / PDRRMO Rescue')" class="p-3.5 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-left transition active:scale-[0.98] flex flex-col justify-between h-28">
+                  <div class="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 shadow">
+                    <i data-lucide="life-buoy" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <div class="font-extrabold text-sm text-white">MDRRMO</div>
+                    <div class="text-[11px] text-amber-200/80">Rescue, Flood, Crash</div>
+                  </div>
+                </button>
+
+                <!-- AMBULANCE / HOSPITAL -->
+                <button onclick="triggerEmergency('AMBULANCE', 'EMS Ambulance & Nearest Hospital')" class="p-3.5 rounded-2xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-left transition active:scale-[0.98] flex flex-col justify-between h-28">
+                  <div class="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow">
+                    <i data-lucide="ambulance" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <div class="font-extrabold text-sm text-white">Ambulance</div>
+                    <div class="text-[11px] text-emerald-200/80">Medical, ER Trauma</div>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Quick Context Chips (Optional pre-select) -->
+              <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800">
+                <div class="text-[11px] font-bold text-slate-400 mb-2">Optional Quick Situation Tag (1-Tap):</div>
+                <div class="flex flex-wrap gap-1.5" id="quick-tags-container">
+                  <button onclick="toggleQuickTag(this, 'Person Injured / Bleeding')" class="quick-tag px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500 transition">🩸 Injured</button>
+                  <button onclick="toggleQuickTag(this, 'Trapped Inside Structure/Vehicle')" class="quick-tag px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500 transition">🚧 Trapped</button>
+                  <button onclick="toggleQuickTag(this, 'Fire Spreading Rapidly')" class="quick-tag px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500 transition">🔥 Fire Spreading</button>
+                  <button onclick="toggleQuickTag(this, 'Armed Suspect Present')" class="quick-tag px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500 transition">⚠️ Armed Threat</button>
+                  <button onclick="toggleQuickTag(this, 'Vehicular Collision')" class="quick-tag px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500 transition">🚗 Road Crash</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ACTIVE SOS STATE: LIVE RADAR + LOCKED GPS + OPTIONAL PHOTO/VIDEO UPLOAD -->
+            <div id="res-active-sos-panel" class="hidden space-y-3">
+              <!-- Active Status Card -->
+              <div class="p-3.5 rounded-2xl bg-red-600/20 border border-red-500/60 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-red-400 uppercase tracking-wider">
+                    <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                    <span id="res-active-agency-badge">SOS ACTIVE</span>
+                  </span>
+                  <span id="res-active-id" class="font-mono-code text-[11px] text-slate-300">INC-2026-001</span>
+                </div>
+                <div id="res-dispatch-status-text" class="text-sm font-extrabold text-white">
+                  Broadcasting to Command Center...
+                </div>
+                <div class="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1 text-[11px]">
+                  <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Locked GPS Snapshot:</span>
+                    <span class="text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> Saved on Server</span>
+                  </div>
+                  <div id="res-locked-coords" class="font-mono-code text-slate-200">15.9208° N, 120.4152° E</div>
+                  <div id="res-locked-timestamp" class="text-slate-400">Date/Time: --</div>
+                </div>
+              </div>
+
+              <!-- Mini Live Responder Radar Map on Phone -->
+              <div class="rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 relative h-44">
+                <canvas id="resident-radar-canvas" class="w-full h-full block"></canvas>
+                <div class="absolute bottom-2 left-2 right-2 bg-slate-950/90 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-800 flex items-center justify-between text-[11px]">
+                  <span id="res-radar-unit-label" class="font-semibold text-slate-300">Awaiting responder acknowledgement...</span>
+                  <span id="res-radar-eta" class="font-mono-code font-bold text-amber-400">ETA: --</span>
+                </div>
+              </div>
+
+              <!-- NON-BLOCKING OPTIONAL PHOTO & VIDEO UPLOAD DRAWER -->
+              <div class="p-3.5 rounded-2xl bg-slate-900 border border-slate-700/80 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <i data-lucide="camera" class="w-4 h-4 text-sky-400"></i>
+                    <span class="text-xs font-extrabold text-white">Add Photo / Video (Optional)</span>
+                  </div>
+                  <span class="text-[10px] px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 font-semibold">Auto-Watermarked</span>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-snug">
+                  Your SOS is already sent. If safe, attach a quick photo or short clip so responders can see the situation.
+                </p>
+
+                <!-- Real File Input + 1-Click Sample Evidence Presets -->
+                <div class="grid grid-cols-2 gap-2">
+                  <label class="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-white transition">
+                    <i data-lucide="image-plus" class="w-4 h-4 text-sky-400"></i>
+                    <span>Upload Photo</span>
+                    <input type="file" accept="image/*" class="hidden" onchange="handleResidentMediaUpload(event, 'photo')" />
+                  </label>
+                  <label class="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-white transition">
+                    <i data-lucide="video" class="w-4 h-4 text-rose-400"></i>
+                    <span>Upload Video</span>
+                    <input type="file" accept="video/*" class="hidden" onchange="handleResidentMediaUpload(event, 'video')" />
+                  </label>
+                </div>
+
+                <!-- Instant Demo Scene Presets for Testing -->
+                <div class="flex items-center gap-1.5 pt-1">
+                  <span class="text-[10px] text-slate-500 shrink-0">Quick Demo Media:</span>
+                  <button onclick="attachSampleEvidence('photo')" class="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-[10px] text-sky-300 border border-slate-700 transition">+ Sample Scene Photo</button>
+                  <button onclick="attachSampleEvidence('video')" class="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-[10px] text-rose-300 border border-slate-700 transition">+ 8s Video Clip</button>
+                </div>
+
+                <!-- Uploaded Evidence Confirmation Preview -->
+                <div id="res-media-preview-box" class="hidden pt-2 border-t border-slate-800">
+                  <div class="flex items-center justify-between text-[11px] text-emerald-400 font-bold mb-1.5">
+                    <span>✓ Synced to Command Center</span>
+                    <span id="res-media-type-badge" class="font-mono-code text-[10px]">PHOTO</span>
+                  </div>
+                  <div id="res-media-thumb" class="rounded-xl overflow-hidden border border-slate-700 bg-black max-h-28 flex items-center justify-center"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: VERIFICATION & MEDICAL ID PROFILE -->
+          <div id="res-tab-verify" class="hidden space-y-3">
+            <div class="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-300">E-mergency KYC Verification</h3>
+                <button onclick="toggleVerificationState()" id="btn-sim-verify-toggle" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  Status: VERIFIED
+                </button>
+              </div>
+
+              <!-- Resident Identity Form -->
+              <div class="space-y-2 text-xs">
+                <div>
+                  <label class="text-[10px] uppercase font-bold text-slate-400">Full Legal Name (Matched to Gov ID)</label>
+                  <input type="text" id="inp-res-name" value="Juan Dela Cruz" onchange="updateResidentProfile()" class="w-full mt-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-semibold focus:outline-none focus:border-blue-500" />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-400">OTP Verified Mobile</label>
+                    <input type="text" id="inp-res-phone" value="+63 917 842 1904" onchange="updateResidentProfile()" class="w-full mt-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono-code text-[11px]" />
+                  </div>
+                  <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-400">Blood Type & Medical</label>
+                    <input type="text" id="inp-res-medical" value="O+ | Asthmatic" onchange="updateResidentProfile()" class="w-full mt-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-emerald-300 font-semibold text-[11px]" />
+                  </div>
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase font-bold text-slate-400">Home Barangay / Address</label>
+                  <input type="text" id="inp-res-address" value="Brgy. Poblacion, Malasiqui, Pangasinan" onchange="updateResidentProfile()" class="w-full mt-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-[11px]" />
+                </div>
+              </div>
+
+              <!-- Interactive ID & Selfie Upload / Preview Cards -->
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <label class="cursor-pointer p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-blue-500/50 text-center space-y-1.5 transition">
+                  <div id="kyc-id-preview" class="w-full h-16 rounded-lg bg-gradient-to-br from-blue-900/50 to-slate-800 border border-blue-500/30 flex flex-col items-center justify-center p-1 overflow-hidden">
+                    <i data-lucide="id-card" class="w-6 h-6 text-blue-400"></i>
+                    <span class="text-[9px] font-mono-code text-blue-200 mt-0.5">PHILSYS ID #8841-20</span>
+                  </div>
+                  <div class="text-[10px] font-bold text-emerald-400">✓ Gov ID (Tap to Update)</div>
+                  <input type="file" accept="image/*" class="hidden" onchange="handleKycUpload(event, 'id')" />
+                </label>
+
+                <label class="cursor-pointer p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/50 text-center space-y-1.5 transition">
+                  <div id="kyc-selfie-preview" class="w-full h-16 rounded-lg bg-gradient-to-br from-emerald-900/40 to-slate-800 border border-emerald-500/30 flex flex-col items-center justify-center p-1 overflow-hidden">
+                    <i data-lucide="scan-face" class="w-6 h-6 text-emerald-400"></i>
+                    <span class="text-[9px] font-mono-code text-emerald-200 mt-0.5">LIVENESS 99.4%</span>
+                  </div>
+                  <div class="text-[10px] font-bold text-emerald-400">✓ Live Selfie (Tap to Update)</div>
+                  <input type="file" accept="image/*" class="hidden" onchange="handleKycUpload(event, 'selfie')" />
+                </label>
+              </div>
+
+              <!-- Mandatory Ordinance Waiver -->
+              <label class="flex items-start gap-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+                <input type="checkbox" id="chk-ordinance-waiver" checked onchange="toggleVerificationState(true)" class="mt-0.5 accent-emerald-500" />
+                <span class="text-[10px] text-slate-300 leading-snug">
+                  I agree that my verified identity, GPS location, and timestamp are logged upon <strong>E-mergency</strong> activation, and false/prank reports carry a <strong>₱5,000 fine & legal prosecution</strong> under Municipal Ordinance No. 2026-04.
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone Bottom Navigation -->
+        <nav class="bg-slate-900 border-t border-slate-800 px-6 py-2.5 flex items-center justify-around">
+          <button onclick="switchResidentTab('panic')" id="nav-res-panic" class="flex flex-col items-center gap-1 text-red-400 font-bold text-[11px]">
+            <i data-lucide="siren" class="w-5 h-5"></i>
+            <span>Emergency</span>
+          </button>
+          <button onclick="switchResidentTab('verify')" id="nav-res-verify" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white font-semibold text-[11px]">
+            <i data-lucide="user-check" class="w-5 h-5"></i>
+            <span>ID & Medical</span>
+          </button>
+        </nav>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- RIGHT COLUMN: MULTI-AGENCY COMMAND CENTER                             -->
+    <!-- ===================================================================== -->
+    <section id="panel-command" class="lg:col-span-8 xl:col-span-8 flex flex-col gap-4">
+
+      <!-- Agency Role Switcher & Active Siren Banner -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1"><span class="text-red-500 font-black">E</span>-mergency Dispatch:</span>
+          <button onclick="setAgencyFilter('ALL')" id="agency-tab-ALL" class="agency-tab px-3 py-1.5 rounded-xl text-xs font-extrabold bg-slate-700 text-white transition">MDRRMO Master</button>
+          <button onclick="setAgencyFilter('PNP')" id="agency-tab-PNP" class="agency-tab px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 text-blue-400 border border-blue-500/30 hover:bg-blue-950/50 transition">PNP</button>
+          <button onclick="setAgencyFilter('BFP')" id="agency-tab-BFP" class="agency-tab px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 text-orange-400 border border-orange-500/30 hover:bg-orange-950/50 transition">BFP</button>
+          <button onclick="setAgencyFilter('PDRRMO')" id="agency-tab-PDRRMO" class="agency-tab px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 text-amber-400 border border-amber-500/30 hover:bg-amber-950/50 transition">PDRRMO</button>
+          <button onclick="setAgencyFilter('AMBULANCE')" id="agency-tab-AMBULANCE" class="agency-tab px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-950/50 transition">Ambulance</button>
+          <button onclick="setAgencyFilter('HOSPITAL')" id="agency-tab-HOSPITAL" class="agency-tab px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 text-teal-300 border border-teal-500/30 hover:bg-teal-950/50 transition">Nearest Hospital ER</button>
+        </div>
+
+        <button onclick="openBlotterModal()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-sky-400"></i>
+          <span>Incident Blotter (<span id="blotter-count">2</span>)</span>
+        </button>
+      </div>
+
+      <!-- CASCADING ALERT BANNER (Flashes when an unacknowledged emergency is active) -->
+      <div id="cmd-siren-banner" class="hidden rounded-2xl border-2 p-3.5 animate-siren flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white shrink-0 animate-bounce">
+            <i data-lucide="bell-ring" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-black uppercase tracking-wider text-red-400">INCOMING EMERGENCY ALERT</span>
+              <span id="sms-fallback-timer" class="text-[11px] font-mono-code px-2 py-0.5 rounded bg-black/50 text-amber-300 border border-amber-500/40">SMS Escalation in 30s</span>
+            </div>
+            <p id="cmd-siren-summary" class="text-sm font-extrabold text-white mt-0.5">SOS triggered by Juan Dela Cruz at Brgy. Poblacion</p>
+          </div>
+        </div>
+        <button onclick="acknowledgeSelectedIncident()" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/50 flex items-center gap-2 transition">
+          <i data-lucide="navigation" class="w-4 h-4"></i>
+          <span>WE ARE COMING (DISPATCH)</span>
+        </button>
+      </div>
+
+      <!-- HOSPITAL ER PRE-ARRIVAL BANNER (Visible when Ambulance notifies Hospital or Hospital tab active) -->
+      <div id="hospital-er-banner" class="hidden rounded-2xl bg-teal-950/80 border border-teal-500/50 p-3 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="p-2 rounded-xl bg-teal-500/20 text-teal-300">
+            <i data-lucide="hospital" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-[11px] font-extrabold uppercase text-teal-300">Malasiqui District Hospital — ER Pre-Arrival Notice</div>
+            <p id="hospital-er-text" class="text-xs text-white font-medium">Incoming Ambulance with Trauma Patient • Blood Type O+ • Trauma Bay 1 Ready</p>
+          </div>
+        </div>
+        <span class="px-2.5 py-1 rounded-lg bg-teal-500/20 text-teal-300 font-mono-code text-xs font-bold">ER READY</span>
+      </div>
+
+      <!-- MAIN COMMAND GRID: LIVE TACTICAL MAP + CALLER DOSSIER -->
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+
+        <!-- LIVE TACTICAL GIS MAP (7 Cols) -->
+        <div class="xl:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
+          <div class="px-4 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="map-pin" class="w-4 h-4 text-red-500"></i>
+              <span class="text-xs font-extrabold uppercase tracking-wider text-slate-200">Live Tactical Dispatch Map</span>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] font-semibold text-slate-400">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Locked Pin</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-400"></span> Responder</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-teal-400"></span> Hospital</span>
+            </div>
+          </div>
+
+          <div class="relative flex-1 min-h-[360px] bg-[#0b1322]">
+            <canvas id="command-map-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+            <!-- Map Overlay Legend / Coordinates Readout -->
+            <div id="map-sector-card" class="absolute top-3 left-3 bg-slate-950/90 backdrop-blur border border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1 max-w-[240px]">
+              <div class="font-bold text-slate-300">Municipality of Malasiqui Sector</div>
+              <div class="text-[10px] text-slate-400">Click any emergency pin on the map or list to inspect verified caller dossier.</div>
+            </div>
+
+            <!-- RESCUER TURN-BY-TURN LIVE NAVIGATION HUD (Appears when "WE ARE COMING" is clicked) -->
+            <div id="rescuer-nav-hud" class="hidden absolute top-3 left-3 right-3 bg-slate-950/95 backdrop-blur-md border-2 border-blue-500/70 rounded-2xl shadow-2xl overflow-hidden z-20 transition-all">
+              <!-- Top Turn-by-Turn Banner (Google Maps / Waze Style) -->
+              <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-3.5 py-2.5 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div id="nav-turn-icon-box" class="w-10 h-10 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center text-white shrink-0">
+                    <i data-lucide="corner-up-right" id="nav-turn-icon" class="w-6 h-6"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span id="nav-step-dist" class="text-xs font-black font-mono-code text-blue-100 bg-black/25 px-1.5 py-0.5 rounded">450 m</span>
+                      <span id="nav-unit-badge" class="text-[10px] font-extrabold uppercase tracking-wider text-blue-200 truncate">PNP UNIT 01 EN ROUTE</span>
+                    </div>
+                    <div id="nav-instruction-text" class="text-sm font-black text-white truncate mt-0.5">Head East on Poblacion Main Rd</div>
+                  </div>
+                </div>
+
+                <!-- Live Distance, ETA & Speed Telemetry -->
+                <div class="flex items-center gap-3 shrink-0 text-right">
+                  <div class="hidden sm:block">
+                    <div class="text-[10px] uppercase font-bold text-blue-200">Speed</div>
+                    <div id="nav-speed-val" class="text-xs font-black font-mono-code text-white">62 km/h</div>
+                  </div>
+                  <div class="bg-black/30 px-2.5 py-1 rounded-xl border border-white/15">
+                    <div id="nav-eta-val" class="text-sm font-black font-mono-code text-emerald-300 leading-none">2 min</div>
+                    <div id="nav-rem-dist" class="text-[10px] font-mono-code text-blue-100 mt-0.5">1.6 km</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Secondary Action Bar & Expandable Step-by-Step List -->
+              <div class="px-3.5 py-2 bg-slate-900/95 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <button onclick="toggleNavStepsDrawer()" class="flex items-center gap-1.5 font-bold text-sky-400 hover:text-sky-300 transition">
+                  <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>
+                  <span id="nav-steps-toggle-label">Show Turn-by-Turn Steps (4)</span>
+                </button>
+
+                <div class="flex items-center gap-2">
+                  <a id="btn-open-gmaps" href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold flex items-center gap-1 transition">
+                    <i data-lucide="external-link" class="w-3 h-3 text-sky-400"></i>
+                    <span>Open in Google Maps</span>
+                  </a>
+                  <button onclick="markUnitArrived()" id="btn-mark-arrived" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold flex items-center gap-1 transition">
+                    <i data-lucide="flag" class="w-3 h-3"></i>
+                    <span>Arrived on Scene</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Collapsible Step-by-Step Directions Drawer -->
+              <div id="nav-steps-drawer" class="hidden border-t border-slate-800 bg-slate-950/95 px-3.5 py-2 max-h-32 overflow-y-auto space-y-1.5 text-xs"></div>
+            </div>
+
+            <!-- Active Incidents Quick Selector Strip at Bottom of Map -->
+            <div id="map-incident-pills" class="absolute bottom-3 left-3 right-3 flex items-center gap-2 overflow-x-auto pb-1"></div>
+          </div>
+        </div>
+
+        <!-- VERIFIED CALLER DOSSIER & DISPATCH CONTROLS (5 Cols) -->
+        <div class="xl:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-3">
+          <div id="dossier-content" class="space-y-3">
+            <!-- Header -->
+            <div class="flex items-start justify-between gap-2 border-b border-slate-800 pb-2.5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span id="dos-id" class="font-mono-code text-xs font-bold text-slate-400">INC-2026-089</span>
+                  <span id="dos-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300">RESOLVED</span>
+                </div>
+                <h2 id="dos-agency-title" class="text-base font-black text-white mt-0.5">BFP Fire Alert</h2>
+              </div>
+              <span id="dos-escalated-badge" class="hidden px-2 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-extrabold">
+                PDRRMO ESCALATED
+              </span>
+            </div>
+
+            <!-- Anti-Location-Off GPS & Timestamp Audit Box -->
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-bold text-slate-400 uppercase">Trigger Location & Time Lock</span>
+                <span id="dos-gps-lock-status" class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400">LIVE + LOCKED</span>
+              </div>
+              <div id="dos-coords" class="font-mono-code text-xs font-bold text-white">15.9225° N, 120.4180° E</div>
+              <div id="dos-address" class="text-xs text-slate-300">Brgy. Poblacion, Malasiqui, Pangasinan</div>
+              <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">
+                <span>Reported: <strong id="dos-time-reported" class="text-slate-200 font-mono-code">2026-11-20 19:14:08</strong></span>
+                <span>Resp: <strong id="dos-response-time" class="text-emerald-400 font-mono-code">1m 12s</strong></span>
+              </div>
+            </div>
+
+            <!-- Verified Reporter Identity Card -->
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase text-slate-400">Verified Reporter Dossier</span>
+                <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="badge-check" class="w-3.5 h-3.5"></i> KYC Verified</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-black text-sm shrink-0" id="dos-avatar">
+                  JD
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div id="dos-reporter-name" class="text-sm font-extrabold text-white truncate">Maria Clara Santos</div>
+                  <div id="dos-reporter-phone" class="text-xs font-mono-code text-sky-400">+63 918 552 9012</div>
+                  <div id="dos-reporter-med" class="text-[11px] text-amber-300 font-semibold mt-0.5">Medical ID: Type A+ | No Known Allergies</div>
+                </div>
+              </div>
+              <div id="dos-situation-tag" class="text-xs bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800 text-slate-200">
+                Note: Kitchen electrical fire contained; inspection requested.
+              </div>
+            </div>
+
+            <!-- Optional Uploaded Photo/Video Evidence Viewer -->
+            <div id="dos-evidence-section" class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase text-slate-400">Scene Photo / Video Evidence</span>
+                <span id="dos-evidence-badge" class="text-[10px] font-mono-code text-slate-500">None attached</span>
+              </div>
+              <div id="dos-evidence-viewer" class="rounded-lg overflow-hidden bg-slate-900 border border-slate-800 min-h-[70px] flex items-center justify-center text-xs text-slate-500">
+                No media uploaded by resident yet (Optional)
+              </div>
+            </div>
+          </div>
+
+          <!-- DISPATCHER ACTION BUTTONS -->
+          <div class="space-y-2 pt-2 border-t border-slate-800">
+            <button onclick="acknowledgeSelectedIncident()" id="btn-cmd-coming" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition">
+              <i data-lucide="navigation" class="w-4 h-4"></i>
+              <span>WE ARE COMING (Acknowledge & Dispatch)</span>
+            </button>
+
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="escalateToPDRRMO()" id="btn-cmd-escalate" class="py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-[11px] flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+                <span>Escalate PDRRMO</span>
+              </button>
+              <button onclick="notifyNearestHospital()" id="btn-cmd-hospital" class="py-2 px-3 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-teal-300 font-bold text-[11px] flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="hospital" class="w-3.5 h-3.5"></i>
+                <span>Alert Hospital ER</span>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="resolveSelectedIncident()" id="btn-cmd-resolve" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-[11px] flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Mark Resolved</span>
+              </button>
+              <button onclick="flagFalseReport()" id="btn-cmd-prank" class="py-2 px-3 rounded-xl bg-red-950/80 hover:bg-red-900/80 border border-red-500/40 text-red-300 font-bold text-[11px] flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="gavel" class="w-3.5 h-3.5 text-red-400"></i>
+                <span>False Report / Fine</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CASCADING NOTIFICATION & DISPATCH AUDIT LOG -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <i data-lucide="activity" class="w-4 h-4 text-sky-400"></i>
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-300">Live Multi-Agency Notification & Audit Stream</h3>
+          </div>
+          <span class="text-[10px] font-mono-code text-slate-500">WebSockets + Push + SMS Fallback Active</span>
+        </div>
+        <div id="audit-log-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1 text-xs font-mono-code"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- OFFICIAL INCIDENT BLOTTER & CITATION RECORDS MODAL -->
+  <div id="blotter-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-3.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="file-text" class="w-5 h-5 text-sky-400"></i>
+          <h2 class="font-extrabold text-sm sm:text-base text-white"><span class="text-red-500">E</span>-mergency Official LGU Blotter & Violation Records</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="exportBlotterCSV()" class="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 transition">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Export CSV Report</span>
+          </button>
+          <button onclick="closeBlotterModal()" class="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+      <div class="p-4 overflow-x-auto flex-1">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
+              <th class="py-2.5 px-3">Incident ID</th>
+              <th class="py-2.5 px-3">Agency</th>
+              <th class="py-2.5 px-3">Verified Reporter</th>
+              <th class="py-2.5 px-3">Locked GPS & Date/Time</th>
+              <th class="py-2.5 px-3">Response Time</th>
+              <th class="py-2.5 px-3">Status / Citation</th>
+            </tr>
+          </thead>
+          <tbody id="blotter-table-body" class="divide-y divide-slate-800/70"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. STATE & REALISTIC MUNICIPAL DATA
+    // =========================================================================
+    const state = {
+      layoutMode: 'split',
+      agencyFilter: 'ALL',
+      audioEnabled: true,
+      silentMode: false,
+      deviceGpsOn: true,
+      selectedQuickTag: '',
+      resident: {
+        name: 'Juan Dela Cruz',
+        phone: '+63 917 842 1904',
+        medical: 'O+ | Asthmatic',
+        address: 'Brgy. Poblacion, Malasiqui, Pangasinan',
+        verified: true,
+        suspended: false,
+        fineAmount: 0,
+        lat: 15.9208,
+        lng: 120.4152
+      },
+      activeIncidentId: 'INC-2026-089',
+      smsCountdown: 30,
+      smsTimerInterval: null,
+      sirenInterval: null,
+      incidents: [
+        {
+          id: 'INC-2026-089',
+          agency: 'BFP',
+          agencyLabel: 'BFP Fire Alert',
+          reporterName: 'Maria Clara Santos',
+          reporterPhone: '+63 918 552 9012',
+          reporterMedical: 'Type A+ | No Known Allergies',
+          address: 'Brgy. Poblacion, Malasiqui, Pangasinan',
+          lockedLat: 15.9225,
+          lockedLng: 120.4180,
+          mapX: 0.64,
+          mapY: 0.36,
+          unitX: 0.64,
+          unitY: 0.36,
+          deviceGpsActive: true,
+          reportedAt: '2026-11-20 19:14:08',
+          acknowledgedAt: '2026-11-20 19:15:20',
+          responseSeconds: 72,
+          status: 'RESOLVED', // PENDING | DISPATCHED | RESOLVED | FALSE_REPORT
+          escalatedPDRRMO: false,
+          hospitalNotified: false,
+          situationNote: 'Kitchen electrical spark contained; BFP completed safety inspection.',
+          evidence: null
+        },
+        {
+          id: 'INC-2026-088',
+          agency: 'PNP',
+          agencyLabel: 'PNP Patrol Alert',
+          reporterName: 'Roberto Reyes',
+          reporterPhone: '+63 920 331 7741',
+          reporterMedical: 'Type B+ | Hypertensive',
+          address: 'Brgy. Gomez, Malasiqui, Pangasinan',
+          lockedLat: 15.9182,
+          lockedLng: 120.4115,
+          mapX: 0.32,
+          mapY: 0.68,
+          unitX: 0.32,
+          unitY: 0.68,
+          deviceGpsActive: true,
+          reportedAt: '2026-11-20 17:42:19',
+          acknowledgedAt: '2026-11-20 17:43:05',
+          responseSeconds: 46,
+          status: 'RESOLVED',
+          escalatedPDRRMO: false,
+          hospitalNotified: false,
+          situationNote: 'Road obstruction cleared by PNP & MDRRMO traffic unit.',
+          evidence: null
+        }
+      ],
+      stations: [
+        { name: 'MDRRMO / PNP HQ', x: 0.48, y: 0.48, color: '#3b82f6' },
+        { name: 'BFP Fire Station', x: 0.56, y: 0.44, color: '#f97316' },
+        { name: 'Malasiqui District Hospital', x: 0.25, y: 0.30, color: '#14b8a6' }
+      ],
+      navDrawerOpen: false,
+      auditLogs: []
+    };
+
+    // =========================================================================
+    // 2. ROAD-NETWORK WAYPOINT GENERATOR FOR TURN-BY-TURN ROUTING
+    // =========================================================================
+    function buildTurnByTurnRoute(inc) {
+      // Pick origin station based on responding agency
+      let origin = { x: 0.48, y: 0.48, label: 'MDRRMO / PNP Command HQ' };
+      if (inc.agency === 'BFP') origin = { x: 0.56, y: 0.44, label: 'BFP Fire Station' };
+      if (inc.agency === 'AMBULANCE') origin = { x: 0.25, y: 0.30, label: 'Malasiqui District Hospital EMS' };
+
+      const dest = { x: inc.mapX, y: inc.mapY };
+      // Create realistic orthogonal + diagonal municipal road waypoints
+      const wp1 = { x: origin.x, y: 0.48 };
+      const wp2 = { x: (origin.x + dest.x) * 0.5, y: 0.48 };
+      const wp3 = { x: dest.x, y: (0.48 + dest.y) * 0.5 };
+      const waypoints = [
+        { x: origin.x, y: origin.y },
+        wp1,
+        wp2,
+        wp3,
+        dest
+      ];
+
+      const totalKm = +(1.4 + Math.hypot(dest.x - origin.x, dest.y - origin.y) * 3.8).toFixed(1);
+      const steps = [
+        {
+          icon: 'arrow-up',
+          instruction: `Depart ${origin.label} via Municipal Access Rd`,
+          road: 'Municipal Access Rd',
+          distanceMeters: Math.round(totalKm * 220)
+        },
+        {
+          icon: dest.x >= origin.x ? 'corner-up-right' : 'corner-up-left',
+          instruction: `Turn ${dest.x >= origin.x ? 'Right' : 'Left'} onto Poblacion National Highway`,
+          road: 'Poblacion National Hwy',
+          distanceMeters: Math.round(totalKm * 430)
+        },
+        {
+          icon: dest.y >= 0.48 ? 'corner-down-right' : 'corner-up-right',
+          instruction: `Turn toward ${inc.address.split(',')[0]} Sector Rd`,
+          road: `${inc.address.split(',')[0]} Rd`,
+          distanceMeters: Math.round(totalKm * 250)
+        },
+        {
+          icon: 'map-pin',
+          instruction: `Arrive at Locked SOS Pin (${inc.lockedLat}°N, ${inc.lockedLng}°E)`,
+          road: 'Locked Emergency Pin',
+          distanceMeters: Math.round(totalKm * 100)
+        }
+      ];
+
+      return {
+        originLabel: origin.label,
+        waypoints,
+        currentSegmentIndex: 0,
+        segmentProgress: 0,
+        totalKm,
+        remainingKm: totalKm,
+        speedKmh: inc.agency === 'BFP' ? 54 : 64,
+        headingRad: 0,
+        arrived: false,
+        steps
+      };
+    }
+
+    function toggleNavStepsDrawer() {
+      state.navDrawerOpen = !state.navDrawerOpen;
+      const drawer = document.getElementById('nav-steps-drawer');
+      const label = document.getElementById('nav-steps-toggle-label');
+      const inc = getSelectedIncident();
+      const count = inc && inc.route ? inc.route.steps.length : 4;
+      if (state.navDrawerOpen) {
+        drawer.classList.remove('hidden');
+        label.textContent = `Hide Turn-by-Turn Steps (${count})`;
+      } else {
+        drawer.classList.add('hidden');
+        label.textContent = `Show Turn-by-Turn Steps (${count})`;
+      }
+    }
+
+    function markUnitArrived(autoTriggered = false) {
+      const inc = getSelectedIncident();
+      if (!inc || !inc.route || inc.route.arrived) return;
+
+      inc.route.arrived = true;
+      inc.route.remainingKm = 0;
+      inc.route.currentSegmentIndex = inc.route.waypoints.length - 2;
+      inc.route.segmentProgress = 1;
+      inc.unitX = inc.mapX;
+      inc.unitY = inc.mapY;
+
+      const unitName = inc.agency === 'SOS' ? 'MDRRMO + PNP Joint Task Force' : `${inc.agency} Response Unit 01`;
+      addAuditLog('UNIT ON SCENE', `${unitName} has ARRIVED at ${inc.id} locked emergency pin (${inc.lockedLat}, ${inc.lockedLng}).`, 'success');
+
+      if (inc.reporterName === state.resident.name) {
+        document.getElementById('res-dispatch-status-text').textContent = `${unitName} HAS ARRIVED AT YOUR LOCATION!`;
+        document.getElementById('res-radar-unit-label').textContent = `${unitName} On Scene`;
+        document.getElementById('res-radar-eta').textContent = 'ARRIVED';
+        pushToResidentPhone(`${unitName} has arrived at your locked location!`);
+      }
+      renderCommandCenter();
+    }
+
+    // =========================================================================
+    // 3. WEB AUDIO API SYNTHESIZED EMERGENCY SIREN (NO EXTERNAL AUDIO URLS)
+    // =========================================================================
+    let audioCtx = null;
+    function playEmergencyChime(type = 'siren') {
+      if (!state.audioEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+        if (type === 'siren') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(660, now);
+          osc.frequency.linearRampToValueAtTime(880, now + 0.25);
+          osc.frequency.linearRampToValueAtTime(660, now + 0.5);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+          osc.start(now);
+          osc.stop(now + 0.55);
+        } else {
+          // Confirmation chime
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.setValueAtTime(880, now + 0.12);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        }
+      } catch (e) {
+        // Browser autoplay policy fallback
+      }
+    }
+
+    function startCommandSiren() {
+      stopCommandSiren();
+      playEmergencyChime('siren');
+      state.sirenInterval = setInterval(() => {
+        playEmergencyChime('siren');
+      }, 1800);
+    }
+
+    function stopCommandSiren() {
+      if (state.sirenInterval) {
+        clearInterval(state.sirenInterval);
+        state.sirenInterval = null;
+      }
+    }
+
+    function toggleAudioSiren() {
+      state.audioEnabled = !state.audioEnabled;
+      const icon = document.getElementById('icon-audio');
+      const label = document.getElementById('label-audio');
+      if (state.audioEnabled) {
+        icon.setAttribute('data-lucide', 'volume-2');
+        icon.classList.replace('text-slate-500', 'text-emerald-400');
+        label.textContent = 'Siren Audio: ON';
+        playEmergencyChime('chime');
+      } else {
+        stopCommandSiren();
+        icon.setAttribute('data-lucide', 'volume-x');
+        icon.classList.replace('text-emerald-400', 'text-slate-500');
+        label.textContent = 'Siren Audio: OFF';
+      }
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 4. NOTIFICATION & AUDIT LOG ENGINE
+    // =========================================================================
+    function addAuditLog(source, message, level = 'info') {
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+      state.auditLogs.unshift({ time: timeStr, source, message, level });
+      renderAuditLogs();
+      showToast(source, message, level);
+    }
+
+    function showToast(title, message, level = 'info') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        danger: 'bg-red-950/95 border-red-500 text-red-100',
+        success: 'bg-emerald-950/95 border-emerald-500 text-emerald-100',
+        warning: 'bg-amber-950/95 border-amber-500 text-amber-100',
+        info: 'bg-slate-900/95 border-sky-500 text-slate-100'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto p-3 rounded-2xl border shadow-2xl backdrop-blur-md transition-all duration-300 ${colors[level] || colors.info}`;
+      toast.innerHTML = `
+        <div class="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider opacity-80">
+          <span>${title}</span>
+          <span>NOW</span>
+        </div>
+        <div class="text-xs font-semibold mt-0.5 leading-snug">${message}</div>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 4500);
+    }
+
+    function pushToResidentPhone(message) {
+      const banner = document.getElementById('resident-push-banner');
+      document.getElementById('res-push-text').textContent = message;
+      document.getElementById('res-push-time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      banner.classList.remove('hidden');
+      if (!state.silentMode) {
+        playEmergencyChime('chime');
+      }
+    }
+
+    function renderAuditLogs() {
+      const list = document.getElementById('audit-log-list');
+      list.innerHTML = state.auditLogs.map(log => {
+        const color = log.level === 'danger' ? 'text-red-400' :
+                      log.level === 'success' ? 'text-emerald-400' :
+                      log.level === 'warning' ? 'text-amber-300' : 'text-sky-400';
+        return `
+          <div class="flex items-start gap-2 py-1 border-b border-slate-800/60">
+            <span class="text-slate-500 shrink-0">[${log.time}]</span>
+            <span class="font-bold ${color} shrink-0">${log.source}:</span>
+            <span class="text-slate-300">${log.message}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 5. RESIDENT APP LOGIC (VERIFICATION, GPS LOCK, SOS TRIGGER, MEDIA)
+    // =========================================================================
+    function toggleDeviceGPS() {
+      state.deviceGpsOn = !state.deviceGpsOn;
+      const btn = document.getElementById('btn-toggle-gps');
+      const dot = document.getElementById('gps-indicator-dot');
+      const sub = document.getElementById('gps-status-sub');
+
+      if (state.deviceGpsOn) {
+        btn.textContent = 'GPS: ON';
+        btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+        sub.textContent = `${state.resident.lat.toFixed(4)}° N, ${state.resident.lng.toFixed(4)}° E`;
+        sub.className = 'text-[10px] text-emerald-400 font-mono-code';
+        addAuditLog('DEVICE TELEMETRY', 'Resident device GPS turned ON.', 'info');
+      } else {
+        btn.textContent = 'GPS: OFF';
+        btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 transition';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
+        sub.textContent = 'LOCATION DISABLED ON DEVICE';
+        sub.className = 'text-[10px] text-red-400 font-mono-code font-bold';
+        addAuditLog('ANTI-TAMPER GPS', 'Resident turned OFF device location! Previously locked report coordinates remain permanently pinned on Command Map.', 'warning');
+      }
+
+      // Update live status on any active resident incident without erasing locked coords
+      const liveInc = state.incidents.find(i => i.reporterName === state.resident.name && i.status !== 'RESOLVED');
+      if (liveInc) {
+        liveInc.deviceGpsActive = state.deviceGpsOn;
+        renderCommandCenter();
+      }
+    }
+
+    function toggleSilentMode() {
+      state.silentMode = !state.silentMode;
+      const icon = document.getElementById('icon-silent');
+      const label = document.getElementById('label-silent');
+      if (state.silentMode) {
+        icon.setAttribute('data-lucide', 'bell-off');
+        icon.classList.replace('text-amber-400', 'text-slate-400');
+        label.textContent = 'Silent';
+        showToast('SILENT PANIC MODE', 'Phone siren & bright alerts muted for discreet emergency reporting.', 'info');
+      } else {
+        icon.setAttribute('data-lucide', 'bell-ring');
+        icon.classList.replace('text-slate-400', 'text-amber-400');
+        label.textContent = 'Loud';
+      }
+      lucide.createIcons();
+    }
+
+    function toggleQuickTag(btn, tagText) {
+      document.querySelectorAll('.quick-tag').forEach(el => {
+        el.classList.remove('bg-red-600', 'text-white', 'border-red-400');
+        el.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
+      });
+      if (state.selectedQuickTag === tagText) {
+        state.selectedQuickTag = '';
+      } else {
+        state.selectedQuickTag = tagText;
+        btn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700');
+        btn.classList.add('bg-red-600', 'text-white', 'border-red-400');
+      }
+    }
+
+    function switchResidentTab(tab) {
+      const panicView = document.getElementById('res-tab-panic');
+      const verifyView = document.getElementById('res-tab-verify');
+      const navPanic = document.getElementById('nav-res-panic');
+      const navVerify = document.getElementById('nav-res-verify');
+
+      if (tab === 'panic') {
+        panicView.classList.remove('hidden');
+        verifyView.classList.add('hidden');
+        navPanic.classList.replace('text-slate-400', 'text-red-400');
+        navVerify.classList.replace('text-emerald-400', 'text-slate-400');
+      } else {
+        panicView.classList.add('hidden');
+        verifyView.classList.remove('hidden');
+        navVerify.classList.replace('text-slate-400', 'text-emerald-400');
+        navPanic.classList.replace('text-red-400', 'text-slate-400');
+      }
+    }
+
+    function toggleVerificationState(fromCheckbox = false) {
+      const waiverChecked = document.getElementById('chk-ordinance-waiver').checked;
+      if (fromCheckbox) {
+        state.resident.verified = waiverChecked;
+      } else {
+        state.resident.verified = !state.resident.verified;
+        document.getElementById('chk-ordinance-waiver').checked = state.resident.verified;
+      }
+
+      const btn = document.getElementById('btn-sim-verify-toggle');
+      const pill = document.getElementById('res-verified-pill');
+      const unverifiedBanner = document.getElementById('res-unverified-banner');
+
+      if (state.resident.verified) {
+        btn.textContent = 'Status: VERIFIED';
+        btn.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        pill.innerHTML = `<i data-lucide="badge-check" class="w-3 h-3"></i> Verified`;
+        pill.className = 'inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        unverifiedBanner.classList.add('hidden');
+      } else {
+        btn.textContent = 'Status: UNVERIFIED';
+        btn.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        pill.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3"></i> Unverified`;
+        pill.className = 'inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
+        unverifiedBanner.classList.remove('hidden');
+      }
+      lucide.createIcons();
+    }
+
+    function updateResidentProfile() {
+      state.resident.name = document.getElementById('inp-res-name').value || 'Juan Dela Cruz';
+      state.resident.phone = document.getElementById('inp-res-phone').value || '+63 917 842 1904';
+      state.resident.medical = document.getElementById('inp-res-medical').value || 'O+';
+      state.resident.address = document.getElementById('inp-res-address').value || 'Malasiqui, Pangasinan';
+      document.getElementById('res-header-name').textContent = state.resident.name;
+    }
+
+    function triggerEmergency(agencyCode, agencyLabel) {
+      if (state.resident.suspended) {
+        showToast('ACCOUNT SUSPENDED', 'Clear your false-report fine citation before using emergency services.', 'danger');
+        return;
+      }
+      if (!state.resident.verified) {
+        document.getElementById('res-unverified-banner').classList.remove('hidden');
+        showToast('VERIFICATION REQUIRED', 'Complete 2-Tier ID & Ordinance Waiver first.', 'warning');
+        return;
+      }
+
+      const now = new Date();
+      const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
+      const newId = `INC-2026-${Math.floor(100 + Math.random() * 899)}`;
+
+      // Slight coordinate jitter for realism
+      const lockedLat = +(state.resident.lat + (Math.random() - 0.5) * 0.004).toFixed(5);
+      const lockedLng = +(state.resident.lng + (Math.random() - 0.5) * 0.004).toFixed(5);
+
+      const newIncident = {
+        id: newId,
+        agency: agencyCode,
+        agencyLabel: agencyLabel,
+        reporterName: state.resident.name,
+        reporterPhone: state.resident.phone,
+        reporterMedical: state.resident.medical,
+        address: state.resident.address,
+        lockedLat,
+        lockedLng,
+        mapX: 0.42 + (Math.random() * 0.28),
+        mapY: 0.35 + (Math.random() * 0.32),
+        unitX: 0.48,
+        unitY: 0.48,
+        deviceGpsActive: state.deviceGpsOn,
+        reportedAt: timestamp,
+        createdTimestampMs: Date.now(),
+        acknowledgedAt: null,
+        responseSeconds: null,
+        status: 'PENDING',
+        escalatedPDRRMO: false,
+        hospitalNotified: false,
+        situationNote: state.selectedQuickTag ? `Resident Tag: ${state.selectedQuickTag}` : 'Immediate emergency assistance requested via mobile SOS.',
+        evidence: null
+      };
+
+      state.incidents.unshift(newIncident);
+      state.activeIncidentId = newId;
+
+      // Switch Resident Phone UI to Active SOS + Radar + Optional Upload Drawer
+      document.getElementById('res-panic-buttons-grid').classList.add('hidden');
+      document.getElementById('res-active-sos-panel').classList.remove('hidden');
+      document.getElementById('res-active-agency-badge').textContent = `${agencyCode} EMERGENCY ACTIVE`;
+      document.getElementById('res-active-id').textContent = newId;
+      document.getElementById('res-dispatch-status-text').textContent = `Alerting ${agencyLabel} & MDRRMO...`;
+      document.getElementById('res-locked-coords').textContent = `${lockedLat}° N, ${lockedLng}° E`;
+      document.getElementById('res-locked-timestamp').textContent = `Locked: ${timestamp}`;
+      document.getElementById('res-media-preview-box').classList.add('hidden');
+
+      pushToResidentPhone(`E-mergency SOS Sent! GPS (${lockedLat}, ${lockedLng}) & timestamp permanently locked.`);
+
+      // Trigger Cascading Notification Engine on Command Center
+      startCommandSiren();
+      startSmsEscalationCountdown(newIncident);
+
+      addAuditLog(`${agencyCode} DISPATCH`, `E-MERGENCY ALERT (${newId}) from Verified Resident ${newIncident.reporterName} at ${lockedLat}, ${lockedLng}. Siren & Push triggered!`, 'danger');
+
+      renderCommandCenter();
+    }
+
+    function handleKycUpload(event, kind) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const targetId = kind === 'id' ? 'kyc-id-preview' : 'kyc-selfie-preview';
+      document.getElementById(targetId).innerHTML = `<img src="${url}" class="w-full h-full object-cover" />`;
+      showToast('KYC DOCUMENT UPDATED', `${kind === 'id' ? 'Government ID' : 'Live Selfie'} synced to E-mergency verification profile.`, 'success');
+    }
+
+    function startSmsEscalationCountdown(incident) {
+      if (state.smsTimerInterval) clearInterval(state.smsTimerInterval);
+      state.smsCountdown = 30;
+      const timerBadge = document.getElementById('sms-fallback-timer');
+      timerBadge.textContent = `SMS Escalation in ${state.smsCountdown}s`;
+
+      state.smsTimerInterval = setInterval(() => {
+        if (incident.status !== 'PENDING') {
+          clearInterval(state.smsTimerInterval);
+          return;
+        }
+        state.smsCountdown--;
+        if (state.smsCountdown > 0) {
+          timerBadge.textContent = `SMS Escalation in ${state.smsCountdown}s`;
+        } else {
+          clearInterval(state.smsTimerInterval);
+          timerBadge.textContent = `SMS GATEWAY FIRED TO DUTY OFFICER`;
+          addAuditLog('E-MERGENCY SMS FALLBACK', `Unacknowledged >30s! Automated SMS sent to ${incident.agency} Duty Officer with Google Maps link (${incident.lockedLat}, ${incident.lockedLng}).`, 'warning');
+        }
+      }, 1000);
+    }
+
+    // Optional Photo/Video Attachment (Non-blocking)
+    function handleResidentMediaUpload(event, type) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const inc = state.incidents.find(i => i.id === state.activeIncidentId);
+      if (!inc) return;
+
+      inc.evidence = {
+        type,
+        url,
+        fileName: file.name,
+        watermark: `${inc.lockedLat}°N, ${inc.lockedLng}°E | ${inc.reportedAt} | ID:${inc.reporterName}`
+      };
+
+      updateEvidencePreviews(inc);
+      addAuditLog('MEDIA SYNC', `Resident attached optional ${type.toUpperCase()} evidence to ${inc.id} (GPS & Timestamp watermarked).`, 'info');
+    }
+
+    function attachSampleEvidence(type) {
+      const inc = state.incidents.find(i => i.id === state.activeIncidentId);
+      if (!inc) return;
+
+      inc.evidence = {
+        type,
+        isSample: true,
+        fileName: type === 'photo' ? 'scene_snapshot_01.jpg' : 'emergency_clip_8sec.mp4',
+        watermark: `${inc.lockedLat}°N, ${inc.lockedLng}°E | ${inc.reportedAt} | KYC:${inc.reporterName}`
+      };
+
+      updateEvidencePreviews(inc);
+      addAuditLog('MEDIA SYNC', `Resident attached optional ${type.toUpperCase()} evidence to ${inc.id} (GPS & Timestamp watermarked).`, 'info');
+    }
+
+    function updateEvidencePreviews(inc) {
+      if (!inc.evidence) return;
+      const resBox = document.getElementById('res-media-preview-box');
+      const resThumb = document.getElementById('res-media-thumb');
+      document.getElementById('res-media-type-badge').textContent = inc.evidence.type.toUpperCase();
+      resBox.classList.remove('hidden');
+
+      const visualHTML = inc.evidence.isSample
+        ? `<div class="p-3 text-center w-full bg-gradient-to-br from-slate-800 to-slate-950">
+             <div class="text-xs font-extrabold text-sky-300">${inc.evidence.type === 'photo' ? '📷 Live Scene Snapshot Captured' : '🎥 8-Second Emergency Video Clip'}</div>
+             <div class="text-[10px] font-mono-code text-amber-300 mt-1">${inc.evidence.watermark}</div>
+           </div>`
+        : (inc.evidence.type === 'photo'
+            ? `<img src="${inc.evidence.url}" class="max-h-28 w-full object-cover" />`
+            : `<video src="${inc.evidence.url}" controls class="max-h-28 w-full"></video>`);
+
+      resThumb.innerHTML = visualHTML;
+      renderCommandCenter();
+    }
+
+    // =========================================================================
+    // 6. COMMAND CENTER ACTIONS (WE ARE COMING, ESCALATE, HOSPITAL, FINE)
+    // =========================================================================
+    function getSelectedIncident() {
+      return state.incidents.find(i => i.id === state.activeIncidentId) || state.incidents[0];
+    }
+
+    function acknowledgeSelectedIncident() {
+      const inc = getSelectedIncident();
+      if (!inc) return;
+
+      stopCommandSiren();
+      if (state.smsTimerInterval) clearInterval(state.smsTimerInterval);
+
+      if (inc.status === 'PENDING') {
+        inc.status = 'DISPATCHED';
+        inc.acknowledgedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        inc.responseSeconds = Math.max(4, Math.round((Date.now() - (inc.createdTimestampMs || Date.now() - 8000)) / 1000));
+
+        // Build multi-waypoint road route from station to locked emergency pin
+        inc.route = buildTurnByTurnRoute(inc);
+        inc.unitX = inc.route.waypoints[0].x;
+        inc.unitY = inc.route.waypoints[0].y;
+
+        const agencyUnitName = inc.agency === 'SOS' ? 'MDRRMO + PNP Joint Task Force' : `${inc.agency} Response Unit 01`;
+        addAuditLog(inc.agency, `"WE ARE COMING" clicked for ${inc.id}! Turn-by-turn navigation started (${inc.route.totalKm} km route).`, 'success');
+
+        if (inc.reporterName === state.resident.name) {
+          document.getElementById('res-dispatch-status-text').textContent = `${agencyUnitName} IS ON THE WAY!`;
+          document.getElementById('res-radar-unit-label').textContent = `${agencyUnitName} • ${inc.route.totalKm} km away`;
+          document.getElementById('res-radar-eta').textContent = 'ETA: 3 mins';
+          pushToResidentPhone(`${agencyUnitName} acknowledged your SOS and is navigating to your location (${inc.route.totalKm} km away)!`);
+        }
+      } else {
+        showToast('ALREADY DISPATCHED', `${inc.id} is already acknowledged and turn-by-turn navigation is active.`, 'info');
+      }
+
+      renderCommandCenter();
+    }
+
+    function escalateToPDRRMO() {
+      const inc = getSelectedIncident();
+      if (!inc) return;
+      inc.escalatedPDRRMO = true;
+      playEmergencyChime('chime');
+      addAuditLog('PDRRMO PROVINCIAL', `Incident ${inc.id} escalated from Municipal MDRRMO to Provincial PDRRMO Command! Heavy rescue & provincial assets alerted.`, 'warning');
+      if (inc.reporterName === state.resident.name) {
+        pushToResidentPhone('Your emergency has been escalated to PDRRMO Provincial Rescue for additional support.');
+      }
+      renderCommandCenter();
+    }
+
+    function notifyNearestHospital() {
+      const inc = getSelectedIncident();
+      if (!inc) return;
+      inc.hospitalNotified = true;
+      playEmergencyChime('chime');
+      const banner = document.getElementById('hospital-er-banner');
+      document.getElementById('hospital-er-text').textContent = `Incoming Patient (${inc.reporterName}) • Medical ID: ${inc.reporterMedical} • ETA 4 mins to Malasiqui District Hospital ER`;
+      banner.classList.remove('hidden');
+      addAuditLog('HOSPITAL ER', `Pre-Arrival Trauma Alert sent to Malasiqui District Hospital ER for ${inc.reporterName} (${inc.reporterMedical}).`, 'success');
+      renderCommandCenter();
+    }
+
+    function resolveSelectedIncident() {
+      const inc = getSelectedIncident();
+      if (!inc) return;
+      stopCommandSiren();
+      inc.status = 'RESOLVED';
+      inc.unitX = inc.mapX;
+      inc.unitY = inc.mapY;
+      addAuditLog('INCIDENT CLOSED', `${inc.id} marked RESOLVED and archived in official LGU blotter.`, 'success');
+
+      if (inc.reporterName === state.resident.name) {
+        pushToResidentPhone(`Emergency ${inc.id} has been resolved by responders. Stay safe!`);
+        setTimeout(() => {
+          document.getElementById('res-active-sos-panel').classList.add('hidden');
+          document.getElementById('res-panic-buttons-grid').classList.remove('hidden');
+        }, 1200);
+      }
+      renderCommandCenter();
+    }
+
+    function flagFalseReport() {
+      const inc = getSelectedIncident();
+      if (!inc) return;
+      stopCommandSiren();
+      if (state.smsTimerInterval) clearInterval(state.smsTimerInterval);
+
+      inc.status = 'FALSE_REPORT';
+      inc.situationNote = 'FLAGGED AS PRANK / FALSE REPORT — ₱5,000 Ordinance Citation Issued.';
+
+      addAuditLog('ANTI-PRANK ENFORCEMENT', `VIOLATION LOGGED on ${inc.reporterName} (${inc.reporterPhone}) for ${inc.id}. ₱5,000 fine issued & account suspended!`, 'danger');
+
+      if (inc.reporterName === state.resident.name) {
+        state.resident.suspended = true;
+        state.resident.fineAmount = 5000;
+        document.getElementById('res-active-sos-panel').classList.add('hidden');
+        document.getElementById('res-panic-buttons-grid').classList.remove('hidden');
+        document.getElementById('res-fine-banner').classList.remove('hidden');
+        document.getElementById('res-fine-details').textContent = `Incident ${inc.id} was verified as a FALSE REPORT at (${inc.lockedLat}, ${inc.lockedLng}). Citation Fine: ₱5,000.00 issued to ${inc.reporterName}.`;
+        pushToResidentPhone('CITATION NOTICE: Your account is suspended and fined ₱5,000 for submitting a false emergency report.');
+      }
+
+      renderCommandCenter();
+    }
+
+    function clearResidentSuspension() {
+      state.resident.suspended = false;
+      state.resident.fineAmount = 0;
+      document.getElementById('res-fine-banner').classList.add('hidden');
+      showToast('DEMO ACCOUNT RESTORED', 'Resident account suspension cleared for further testing.', 'info');
+    }
+
+    // =========================================================================
+    // 7. RENDER COMMAND CENTER UI & BLOTTER
+    // =========================================================================
+    function setAgencyFilter(agency) {
+      state.agencyFilter = agency;
+      document.querySelectorAll('.agency-tab').forEach(btn => {
+        btn.classList.remove('bg-slate-700', 'text-white');
+      });
+      const activeBtn = document.getElementById(`agency-tab-${agency}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-slate-700', 'text-white');
+      }
+
+      if (agency === 'HOSPITAL') {
+        document.getElementById('hospital-er-banner').classList.remove('hidden');
+      }
+      renderCommandCenter();
+    }
+
+    function renderCommandCenter() {
+      const filtered = state.agencyFilter === 'ALL'
+        ? state.incidents
+        : state.incidents.filter(i => {
+            if (state.agencyFilter === 'PDRRMO') return i.escalatedPDRRMO || i.agency === 'MDRRMO' || i.agency === 'SOS';
+            if (state.agencyFilter === 'HOSPITAL') return i.hospitalNotified || i.agency === 'AMBULANCE' || i.agency === 'SOS';
+            return i.agency === state.agencyFilter || i.agency === 'SOS';
+          });
+
+      // Siren Banner visibility
+      const pendingInc = state.incidents.find(i => i.status === 'PENDING');
+      const sirenBanner = document.getElementById('cmd-siren-banner');
+      if (pendingInc) {
+        sirenBanner.classList.remove('hidden');
+        document.getElementById('cmd-siren-summary').textContent = `${pendingInc.agencyLabel} triggered by ${pendingInc.reporterName} (${pendingInc.address})`;
+      } else {
+        sirenBanner.classList.add('hidden');
+      }
+
+      // Render Map Incident Pills
+      const pillsContainer = document.getElementById('map-incident-pills');
+      pillsContainer.innerHTML = filtered.map(inc => {
+        const isSelected = inc.id === state.activeIncidentId;
+        const badgeColor = inc.status === 'PENDING' ? 'bg-red-600 text-white animate-pulse' :
+                           inc.status === 'DISPATCHED' ? 'bg-amber-500 text-slate-950' :
+                           inc.status === 'FALSE_REPORT' ? 'bg-purple-600 text-white' : 'bg-emerald-600 text-white';
+        return `
+          <button onclick="selectIncident('${inc.id}')" class="shrink-0 px-3 py-1.5 rounded-xl border text-left transition flex items-center gap-2 ${isSelected ? 'bg-slate-800 border-sky-400 shadow-lg' : 'bg-slate-950/90 border-slate-800 hover:border-slate-600'}">
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${badgeColor}">${inc.status}</span>
+            <div>
+              <div class="text-[11px] font-extrabold text-white">${inc.agency} • ${inc.reporterName}</div>
+              <div class="text-[9px] font-mono-code text-slate-400">${inc.id}</div>
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      // Render Selected Caller Dossier
+      const inc = getSelectedIncident();
+      if (!inc) return;
+
+      document.getElementById('dos-id').textContent = inc.id;
+      document.getElementById('dos-agency-title').textContent = inc.agencyLabel;
+
+      const statusBadge = document.getElementById('dos-status-badge');
+      statusBadge.textContent = inc.status;
+      statusBadge.className = `px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+        inc.status === 'PENDING' ? 'bg-red-500/20 text-red-400 border border-red-500/40' :
+        inc.status === 'DISPATCHED' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+        inc.status === 'FALSE_REPORT' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' :
+        'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+      }`;
+
+      const escBadge = document.getElementById('dos-escalated-badge');
+      inc.escalatedPDRRMO ? escBadge.classList.remove('hidden') : escBadge.classList.add('hidden');
+
+      const gpsLockBadge = document.getElementById('dos-gps-lock-status');
+      if (inc.deviceGpsActive) {
+        gpsLockBadge.textContent = 'LIVE GPS + SNAPSHOT LOCKED';
+        gpsLockBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400';
+      } else {
+        gpsLockBadge.textContent = 'DEVICE GPS OFF — LOCKED PIN PRESERVED';
+        gpsLockBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40';
+      }
+
+      document.getElementById('dos-coords').textContent = `${inc.lockedLat}° N, ${inc.lockedLng}° E`;
+      document.getElementById('dos-address').textContent = inc.address;
+      document.getElementById('dos-time-reported').textContent = inc.reportedAt;
+      document.getElementById('dos-response-time').textContent = inc.responseSeconds ? `${inc.responseSeconds}s` : 'Awaiting...';
+
+      document.getElementById('dos-avatar').textContent = inc.reporterName.split(' ').map(n => n[0]).join('').substring(0, 2);
+      document.getElementById('dos-reporter-name').textContent = inc.reporterName;
+      document.getElementById('dos-reporter-phone').textContent = inc.reporterPhone;
+      document.getElementById('dos-reporter-med').textContent = `Medical ID: ${inc.reporterMedical}`;
+      document.getElementById('dos-situation-tag').textContent = inc.situationNote;
+
+      // Update Rescuer Turn-by-Turn Navigation HUD visibility & Google Maps Deep-Link
+      const navHud = document.getElementById('rescuer-nav-hud');
+      const sectorCard = document.getElementById('map-sector-card');
+      if (inc.status === 'DISPATCHED' && inc.route) {
+        navHud.classList.remove('hidden');
+        sectorCard.classList.add('hidden');
+        document.getElementById('btn-open-gmaps').href = `https://www.google.com/maps/dir/?api=1&destination=${inc.lockedLat},${inc.lockedLng}&travelmode=driving`;
+        updateNavigationHudTelemetry(inc);
+      } else {
+        navHud.classList.add('hidden');
+        sectorCard.classList.remove('hidden');
+      }
+
+      // Evidence Viewer
+      const evBadge = document.getElementById('dos-evidence-badge');
+      const evViewer = document.getElementById('dos-evidence-viewer');
+      if (inc.evidence) {
+        evBadge.textContent = `${inc.evidence.type.toUpperCase()} ATTACHED`;
+        evBadge.className = 'text-[10px] font-mono-code font-bold text-sky-400';
+        evViewer.innerHTML = inc.evidence.isSample
+          ? `<div class="p-3 text-center w-full">
+               <div class="text-xs font-extrabold text-sky-300">${inc.evidence.type === 'photo' ? '📷 Resident Scene Photo Evidence' : '🎥 Resident 8s Video Clip'}</div>
+               <div class="text-[10px] font-mono-code text-amber-300 mt-1">${inc.evidence.watermark}</div>
+             </div>`
+          : (inc.evidence.type === 'photo'
+              ? `<div class="relative w-full"><img src="${inc.evidence.url}" class="max-h-32 w-full object-cover" /><div class="bg-black/80 text-[9px] font-mono-code text-amber-300 px-2 py-1">${inc.evidence.watermark}</div></div>`
+              : `<div class="w-full"><video src="${inc.evidence.url}" controls class="max-h-32 w-full"></video><div class="bg-black/80 text-[9px] font-mono-code text-amber-300 px-2 py-1">${inc.evidence.watermark}</div></div>`);
+      } else {
+        evBadge.textContent = 'None attached';
+        evBadge.className = 'text-[10px] font-mono-code text-slate-500';
+        evViewer.textContent = 'No media uploaded by resident (Optional)';
+      }
+
+      document.getElementById('blotter-count').textContent = state.incidents.length;
+    }
+
+    function selectIncident(id) {
+      state.activeIncidentId = id;
+      renderCommandCenter();
+    }
+
+    // =========================================================================
+    // 8. INTERACTIVE TACTICAL CANVAS MAPS (COMMAND CENTER & RESIDENT RADAR)
+    // =========================================================================
+    function updateNavigationHudTelemetry(inc) {
+      if (!inc || !inc.route) return;
+      const r = inc.route;
+      const activeStepIdx = Math.min(r.currentSegmentIndex, r.steps.length - 1);
+      const step = r.steps[activeStepIdx];
+
+      const unitName = inc.agency === 'SOS' ? 'JOINT TASK FORCE' : `${inc.agency} UNIT 01`;
+      document.getElementById('nav-unit-badge').textContent = r.arrived ? `${unitName} • ON SCENE` : `${unitName} • LIVE ROUTE`;
+
+      if (r.arrived) {
+        document.getElementById('nav-step-dist').textContent = '0 m';
+        document.getElementById('nav-instruction-text').textContent = `Arrived at ${inc.reporterName}'s Locked Pin`;
+        document.getElementById('nav-speed-val').textContent = '0 km/h';
+        document.getElementById('nav-eta-val').textContent = 'ARRIVED';
+        document.getElementById('nav-rem-dist').textContent = '0.0 km';
+        document.getElementById('nav-turn-icon').setAttribute('data-lucide', 'check-circle-2');
+      } else {
+        const segMetersLeft = Math.max(15, Math.round(step.distanceMeters * (1 - r.segmentProgress)));
+        document.getElementById('nav-step-dist').textContent = `${segMetersLeft} m`;
+        document.getElementById('nav-instruction-text').textContent = step.instruction;
+        document.getElementById('nav-speed-val').textContent = `${r.speedKmh} km/h`;
+        const etaMins = Math.max(1, Math.ceil((r.remainingKm / r.speedKmh) * 60));
+        document.getElementById('nav-eta-val').textContent = `${etaMins} min`;
+        document.getElementById('nav-rem-dist').textContent = `${r.remainingKm.toFixed(1)} km`;
+        document.getElementById('nav-turn-icon').setAttribute('data-lucide', step.icon);
+      }
+
+      // Render Step-by-Step Drawer Items
+      const drawer = document.getElementById('nav-steps-drawer');
+      drawer.innerHTML = r.steps.map((s, idx) => {
+        const isCurrent = !r.arrived && idx === activeStepIdx;
+        const isDone = r.arrived || idx < activeStepIdx;
+        return `
+          <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg ${isCurrent ? 'bg-blue-600/25 border border-blue-500/50 text-white font-bold' : isDone ? 'text-slate-500 line-through' : 'text-slate-300'}">
+            <div class="flex items-center gap-2 truncate">
+              <span class="w-4 h-4 rounded-full text-[10px] flex items-center justify-center shrink-0 ${isCurrent ? 'bg-blue-500 text-white' : isDone ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}">${isDone ? '✓' : idx + 1}</span>
+              <span class="truncate">${s.instruction}</span>
+            </div>
+            <span class="font-mono-code text-[10px] text-slate-400 shrink-0 ml-2">${s.distanceMeters}m</span>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function animateMaps() {
+      // Smoothly move dispatched responder units along multi-waypoint road network
+      state.incidents.forEach(inc => {
+        if (inc.status === 'DISPATCHED' && inc.route && !inc.route.arrived) {
+          const r = inc.route;
+          const pts = r.waypoints;
+          const segIdx = r.currentSegmentIndex;
+
+          if (segIdx < pts.length - 1) {
+            const p1 = pts[segIdx];
+            const p2 = pts[segIdx + 1];
+            const segLen = Math.max(0.01, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+
+            // Advance along current road segment
+            r.segmentProgress += 0.0016 / segLen;
+            r.headingRad = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+            if (r.segmentProgress >= 1) {
+              r.segmentProgress = 0;
+              r.currentSegmentIndex++;
+              if (r.currentSegmentIndex >= pts.length - 1) {
+                if (inc.id === state.activeIncidentId) {
+                  markUnitArrived(true);
+                } else {
+                  r.arrived = true;
+                  inc.unitX = inc.mapX;
+                  inc.unitY = inc.mapY;
+                }
+                return;
+              } else if (inc.id === state.activeIncidentId) {
+                updateNavigationHudTelemetry(inc);
+              }
+            }
+
+            const curP1 = pts[r.currentSegmentIndex];
+            const curP2 = pts[Math.min(pts.length - 1, r.currentSegmentIndex + 1)];
+            inc.unitX = curP1.x + (curP2.x - curP1.x) * r.segmentProgress;
+            inc.unitY = curP1.y + (curP2.y - curP1.y) * r.segmentProgress;
+
+            // Update remaining distance & resident phone live ETA
+            const totalSegs = pts.length - 1;
+            const overallProgress = (r.currentSegmentIndex + r.segmentProgress) / totalSegs;
+            r.remainingKm = Math.max(0.1, +(r.totalKm * (1 - overallProgress)).toFixed(1));
+
+            if (inc.id === state.activeIncidentId && Math.random() < 0.15) {
+              updateNavigationHudTelemetry(inc);
+            }
+            if (inc.reporterName === state.resident.name) {
+              const etaMins = Math.max(1, Math.ceil((r.remainingKm / r.speedKmh) * 60));
+              document.getElementById('res-radar-unit-label').textContent = `${inc.agency} Unit • ${r.remainingKm} km away`;
+              document.getElementById('res-radar-eta').textContent = `ETA: ${etaMins} min`;
+            }
+          }
+        }
+      });
+
+      drawCommandMap();
+      drawResidentRadar();
+      requestAnimationFrame(animateMaps);
+    }
+
+    function drawCommandMap() {
+      const canvas = document.getElementById('command-map-canvas');
+      if (!canvas) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      if (canvas.width !== rect.width || canvas.height !== rect.height) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Tactical Grid Background
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.35)';
+      ctx.lineWidth = 1;
+      const step = 36;
+      for (let x = 0; x < w; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 0; y < h; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      // Simulated Municipal Roads
+      ctx.strokeStyle = 'rgba(100, 116, 139, 0.35)';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.48); ctx.lineTo(w, h * 0.48);
+      ctx.moveTo(w * 0.48, 0); ctx.lineTo(w * 0.48, h);
+      ctx.moveTo(w * 0.2, h * 0.15); ctx.lineTo(w * 0.85, h * 0.85);
+      ctx.stroke();
+
+      // Draw Agency Stations & Nearest Hospital
+      state.stations.forEach(st => {
+        const sx = st.x * w;
+        const sy = st.y * h;
+        ctx.fillStyle = st.color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillText(st.name, sx + 10, sy + 3);
+      });
+
+      // Draw Emergency Pins & Turn-by-Turn Moving Responder Units
+      const pulse = (Math.sin(Date.now() / 220) + 1) / 2;
+
+      state.incidents.forEach(inc => {
+        const px = inc.mapX * w;
+        const py = inc.mapY * h;
+        const isSelected = inc.id === state.activeIncidentId;
+
+        // Google Maps-style Turn-by-Turn Polyline if dispatched
+        if (inc.status === 'DISPATCHED') {
+          const ux = inc.unitX * w;
+          const uy = inc.unitY * h;
+
+          if (inc.route && inc.route.waypoints) {
+            const pts = inc.route.waypoints;
+            const segIdx = inc.route.currentSegmentIndex;
+
+            // Traveled greyed-out path behind responder
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x * w, pts[0].y * h);
+            for (let i = 1; i <= segIdx; i++) {
+              ctx.lineTo(pts[i].x * w, pts[i].y * h);
+            }
+            ctx.lineTo(ux, uy);
+            ctx.stroke();
+
+            // Active glowing blue navigation polyline ahead of responder
+            if (!inc.route.arrived) {
+              ctx.strokeStyle = '#3b82f6';
+              ctx.lineWidth = 6;
+              ctx.beginPath();
+              ctx.moveTo(ux, uy);
+              for (let i = segIdx + 1; i < pts.length; i++) {
+                ctx.lineTo(pts[i].x * w, pts[i].y * h);
+              }
+              ctx.stroke();
+
+              // Inner bright route core
+              ctx.strokeStyle = '#93c5fd';
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.moveTo(ux, uy);
+              for (let i = segIdx + 1; i < pts.length; i++) {
+                ctx.lineTo(pts[i].x * w, pts[i].y * h);
+              }
+              ctx.stroke();
+            }
+          }
+
+          // Directional Navigation Arrow / Vehicle Puck
+          ctx.save();
+          ctx.translate(ux, uy);
+          const heading = inc.route ? inc.route.headingRad : 0;
+          ctx.rotate(heading);
+
+          // Glowing halo around responder vehicle
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+          ctx.beginPath();
+          ctx.arc(0, 0, 14, 0, Math.PI * 2);
+          ctx.fill();
+
+          // White circular puck with blue directional arrow
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(0, 0, 9, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#2563eb';
+          ctx.beginPath();
+          ctx.moveTo(6, 0);
+          ctx.lineTo(-4, -4.5);
+          ctx.lineTo(-2, 0);
+          ctx.lineTo(-4, 4.5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+
+          ctx.fillStyle = '#93c5fd';
+          ctx.font = 'bold 10px JetBrains Mono, monospace';
+          ctx.fillText(`${inc.agency} UNIT`, ux - 24, uy - 15);
+        }
+
+        // Pulsing Radar Halo for Active Incidents
+        if (inc.status === 'PENDING' || inc.status === 'DISPATCHED') {
+          ctx.fillStyle = inc.status === 'PENDING'
+            ? `rgba(239, 68, 68, ${0.15 + pulse * 0.25})`
+            : `rgba(245, 158, 11, ${0.15 + pulse * 0.2})`;
+          ctx.beginPath();
+          ctx.arc(px, py, 14 + pulse * 14, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Locked Pin Core
+        ctx.fillStyle = inc.status === 'PENDING' ? '#ef4444' :
+                        inc.status === 'DISPATCHED' ? '#f59e0b' :
+                        inc.status === 'FALSE_REPORT' ? '#a855f7' : '#10b981';
+        ctx.beginPath();
+        ctx.arc(px, py, isSelected ? 9 : 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (isSelected) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
+
+        // Pin Label
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.fillText(`${inc.agency} (${inc.reporterName.split(' ')[0]})`, px + 12, py + 4);
+      });
+    }
+
+    function drawResidentRadar() {
+      const canvas = document.getElementById('resident-radar-canvas');
+      if (!canvas || canvas.offsetParent === null) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      if (canvas.width !== rect.width || canvas.height !== rect.height) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Subtle road grid inside phone map
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.35)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 28) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+      for (let y = 0; y < h; y += 28) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+      // Radar Rings around Resident
+      const cx = w * 0.72;
+      const cy = h * 0.42;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+      ctx.lineWidth = 1;
+      [26, 52, 78].forEach(r => {
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+      });
+
+      const inc = state.incidents.find(i => i.id === state.activeIncidentId);
+      if (!inc) return;
+
+      // Dispatched Unit Moving Along Road Polyline Toward Resident
+      if (inc.status === 'DISPATCHED' && inc.route) {
+        const r = inc.route;
+        const overallProgress = r.arrived ? 1 : (r.currentSegmentIndex + r.segmentProgress) / (r.waypoints.length - 1);
+
+        // Multi-segment polyline path on resident phone
+        const p0 = { x: w * 0.16, y: h * 0.72 };
+        const p1 = { x: w * 0.44, y: h * 0.72 };
+        const p2 = { x: w * 0.44, y: cy };
+        const p3 = { x: cx, y: cy };
+        const phonePts = [p0, p1, p2, p3];
+
+        // Compute current point on phone polyline
+        const scaled = overallProgress * 3;
+        const idx = Math.min(2, Math.floor(scaled));
+        const localT = r.arrived ? 1 : scaled - idx;
+        const ux = phonePts[idx].x + (phonePts[idx + 1].x - phonePts[idx].x) * localT;
+        const uy = phonePts[idx].y + (phonePts[idx + 1].y - phonePts[idx].y) * localT;
+
+        // Remaining blue navigation route
+        if (!r.arrived) {
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(ux, uy);
+          for (let i = idx + 1; i < phonePts.length; i++) {
+            ctx.lineTo(phonePts[i].x, phonePts[i].y);
+          }
+          ctx.stroke();
+        }
+
+        // Moving responder vehicle icon
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath(); ctx.arc(ux, uy, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+
+        ctx.fillStyle = '#6ee7b7';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.fillText(`${inc.agency} UNIT`, ux - 22, uy - 11);
+      }
+
+      // Resident Locked Pin
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#fca5a5';
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.fillText('YOUR LOCKED PIN', cx - 44, cy + 19);
+    }
+
+    // =========================================================================
+    // 9. BLOTTER MODAL & CSV EXPORT
+    // =========================================================================
+    function openBlotterModal() {
+      const tbody = document.getElementById('blotter-table-body');
+      tbody.innerHTML = state.incidents.map(inc => `
+        <tr class="hover:bg-slate-800/50">
+          <td class="py-2.5 px-3 font-mono-code font-bold text-slate-200">${inc.id}</td>
+          <td class="py-2.5 px-3 font-bold text-sky-400">${inc.agency} ${inc.escalatedPDRRMO ? '(+PDRRMO)' : ''}</td>
+          <td class="py-2.5 px-3">
+            <div class="font-bold text-white">${inc.reporterName}</div>
+            <div class="text-[10px] text-slate-400 font-mono-code">${inc.reporterPhone}</div>
+          </td>
+          <td class="py-2.5 px-3 font-mono-code text-[11px]">
+            <div class="text-slate-200">${inc.lockedLat}°N, ${inc.lockedLng}°E</div>
+            <div class="text-slate-400">${inc.reportedAt}</div>
+          </td>
+          <td class="py-2.5 px-3 font-mono-code text-emerald-400">${inc.responseSeconds ? inc.responseSeconds + 's' : '--'}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+              inc.status === 'FALSE_REPORT' ? 'bg-red-500/20 text-red-300' :
+              inc.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+            }">${inc.status}</span>
+          </td>
+        </tr>
+      `).join('');
+      document.getElementById('blotter-modal').classList.remove('hidden');
+    }
+
+    function closeBlotterModal() {
+      document.getElementById('blotter-modal').classList.add('hidden');
+    }
+
+    function exportBlotterCSV() {
+      const headers = ['Incident_ID', 'Agency', 'Reporter_Name', 'Phone', 'Locked_Lat', 'Locked_Lng', 'Reported_At', 'Response_Seconds', 'Status'];
+      const rows = state.incidents.map(i => [
+        i.id, i.agency, `"${i.reporterName}"`, `"${i.reporterPhone}"`, i.lockedLat, i.lockedLng, `"${i.reportedAt}"`, i.responseSeconds || 'N/A', i.status
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `E-mergency_Blotter_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      showToast('BLOTTER EXPORTED', 'Official E-mergency CSV incident record downloaded.', 'success');
+    }
+
+    // =========================================================================
+    // 10. LAYOUT SWITCHER, CLOCK & INITIALIZATION
+    // =========================================================================
+    function setLayoutMode(mode) {
+      state.layoutMode = mode;
+      const resPanel = document.getElementById('panel-resident');
+      const cmdPanel = document.getElementById('panel-command');
+
+      ['split', 'resident', 'command'].forEach(m => {
+        const b = document.getElementById(`btn-mode-${m}`);
+        b.className = m === mode
+          ? 'px-2.5 py-1.5 rounded-lg bg-slate-700 text-white transition'
+          : 'px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
+      });
+
+      if (mode === 'split') {
+        resPanel.classList.remove('hidden', 'lg:col-span-12');
+        resPanel.classList.add('lg:col-span-4', 'xl:col-span-4');
+        cmdPanel.classList.remove('hidden', 'lg:col-span-12');
+        cmdPanel.classList.add('lg:col-span-8', 'xl:col-span-8');
+      } else if (mode === 'resident') {
+        resPanel.classList.remove('hidden', 'lg:col-span-4', 'xl:col-span-4');
+        resPanel.classList.add('lg:col-span-12');
+        cmdPanel.classList.add('hidden');
+      } else {
+        cmdPanel.classList.remove('hidden', 'lg:col-span-8', 'xl:col-span-8');
+        cmdPanel.classList.add('lg:col-span-12');
+        resPanel.classList.add('hidden');
+      }
+    }
+
+    function resetSimulation() {
+      stopCommandSiren();
+      if (state.smsTimerInterval) clearInterval(state.smsTimerInterval);
+      state.resident.suspended = false;
+      state.resident.verified = true;
+      state.deviceGpsOn = true;
+      document.getElementById('res-fine-banner').classList.add('hidden');
+      document.getElementById('res-active-sos-panel').classList.add('hidden');
+      document.getElementById('res-panic-buttons-grid').classList.remove('hidden');
+      document.getElementById('resident-push-banner').classList.add('hidden');
+      document.getElementById('hospital-er-banner').classList.add('hidden');
+      addAuditLog('SYSTEM', 'Simulation workspace reset to ready state.', 'info');
+      renderCommandCenter();
+    }
+
+    // Map click selection
+    document.getElementById('command-map-canvas').addEventListener('click', (e) => {
+      const canvas = e.target;
+      const rect = canvas.getBoundingClientRect();
+      const clickX = (e.clientX - rect.left) / rect.width;
+      const clickY = (e.clientY - rect.top) / rect.height;
+
+      let closest = null;
+      let minDist = 0.08;
+      state.incidents.forEach(inc => {
+        const d = Math.hypot(inc.mapX - clickX, inc.mapY - clickY);
+        if (d < minDist) {
+          minDist = d;
+          closest = inc;
+        }
+      });
+      if (closest) {
+        selectIncident(closest.id);
+      }
+    });
+
+    // Live Phone Clock
+    setInterval(() => {
+      document.getElementById('phone-clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }, 1000);
+
+    // Boot
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      addAuditLog('E-MERGENCY ONLINE', 'PNP, BFP, MDRRMO, PDRRMO, Ambulance & Hospital terminals connected.', 'success');
+      renderCommandCenter();
+      requestAnimationFrame(animateMaps);
+    });
+  </script>
+</body>
+</html>

@@ -69,8 +69,9 @@ assets/fonts/           Inter + JetBrains Mono variable woff2, 72 KB (generated)
 icons/                  app, maskable, apple-touch and shortcut icons (generated)
 screenshots/            install-dialog screenshots used by the manifest
 build/                  Tailwind input + config for the CSS build
-tools/                  regenerate the generated assets
+tools/                  regenerate the generated assets, and check-precache.py
 tests/pwa-test.js       end-to-end PWA checks (Playwright)
+.github/workflows/      CI: runs those checks in a real browser
 ```
 
 ## Rebuilding the generated assets
@@ -118,3 +119,17 @@ npm install --no-save playwright && node tests/pwa-test.js
 28 checks covering the service worker and precache, offline launch, the offline
 SOS queue and its flush on reconnect, session persistence across relaunch,
 install affordances, manifest shortcuts, fonts and icons.
+
+Two cheaper checks guard the things that only break offline, and are worth
+running before you commit a change to the assets:
+
+```bash
+python3 tools/check-precache.py    # sw.js precaches exactly what ships
+```
+
+```bash
+node tools/build-lucide-subset.js && git diff --exit-code assets/lucide.min.js
+```
+
+`.github/workflows/pwa.yml` runs all three on every push and pull request,
+and uploads the suite's screenshots as a build artifact.

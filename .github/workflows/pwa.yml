@@ -1,0 +1,78 @@
+# Offline behaviour is invisible until someone is offline, so CI exercises it
+# in a real browser on every change: install the service worker, cut the
+# network, and check the app still launches and still holds a queued SOS.
+name: PWA checks
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pwa:
+    name: Offline, install and asset integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Pinned to the versions the committed assets and tests were built with:
+      # a different lucide would legitimately produce different icon paths.
+      - name: Install Playwright and lucide
+        run: |
+          npm install --no-save --no-fund --no-audit \
+            playwright@1.63.0 lucide@0.544.0
+          npx playwright install --with-deps chromium
+
+      - name: Service worker precaches exactly the shipped shell
+        run: python3 tools/check-precache.py
+
+      # The icon bundle only contains icons referenced by index.html, so using
+      # a new data-lucide name without regenerating ships an invisible icon.
+      - name: Icon bundle is in sync with the markup
+        run: |
+          node tools/build-lucide-subset.js
+          if ! git diff --quiet -- assets/lucide.min.js; then
+            echo "::error file=assets/lucide.min.js::Icon bundle is stale. Run 'node tools/build-lucide-subset.js' and commit the result."
+            git diff --stat -- assets/lucide.min.js
+            exit 1
+          fi
+          echo "icon bundle matches index.html"
+
+      - name: Serve the app
+        run: |
+          python3 -m http.server 8080 --bind 127.0.0.1 &
+          echo $! > /tmp/server.pid
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8080/index.html >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8080/index.html >/dev/null
+
+      - name: PWA test suite
+        env:
+          BASE_URL: http://127.0.0.1:8080/
+          SHOT_DIR: ${{ runner.temp }}/pwa-screenshots
+        run: node tests/pwa-test.js
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pwa-screenshots
+          path: ${{ runner.temp }}/pwa-screenshots
+          if-no-files-found: ignore
+          retention-days: 7

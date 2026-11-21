@@ -6,7 +6,7 @@
  * a new version is ready.
  * ========================================================================== */
 
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.0.1';
 const SHELL_CACHE = `emergency-shell-${VERSION}`;
 const RUNTIME_CACHE = `emergency-runtime-${VERSION}`;
 
@@ -20,7 +20,6 @@ const PRECACHE_URLS = [
   "assets/lucide.min.js",
   "assets/fonts/inter-latin-ext.woff2",
   "assets/fonts/inter-latin.woff2",
-  "assets/fonts/jetbrains-mono-latin-ext.woff2",
   "assets/fonts/jetbrains-mono-latin.woff2",
   "icons/apple-touch-icon.png",
   "icons/favicon-32.png",

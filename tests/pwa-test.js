@@ -11,7 +11,13 @@ const ok = (n, c, extra = '') => { results.push([c ? 'PASS' : 'FAIL', n, extra])
   const errors = [], failed = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
-  page.on('requestfailed', r => failed.push(r.url() + ' :: ' + (r.failure() || {}).errorText));
+  page.on('requestfailed', r => {
+    const reason = ((r.failure() || {}).errorText) || '';
+    // An abort is a cancellation, not a failure: the connectivity probe is
+    // routinely cut short by the reloads this suite performs.
+    if (reason.includes('ERR_ABORTED')) return;
+    failed.push(r.url() + ' :: ' + reason);
+  });
   page.on('response', r => { if (r.status() >= 400) failed.push(r.status() + ' ' + r.url()); });
 
   // ---------- 1. First load ----------
@@ -62,15 +68,51 @@ const ok = (n, c, extra = '') => { results.push([c ? 'PASS' : 'FAIL', n, extra])
         };
         return { w400: ink(400), w800: ink(800) };
       })(),
-      peso: document.fonts.check('700 12px Inter', '\u20B1') &&
-            document.fonts.check('500 12px "JetBrains Mono"', '\u20B1'),
-      enye: document.fonts.check('400 12px Inter', 'Pe\u00F1a')
+      // fonts.check() only reports faces that are already downloaded, and a
+      // unicode-range face is fetched lazily — the only ₱ text on load sits in
+      // a hidden tab, so whether it has been fetched is a race. load() forces
+      // it and resolves with the faces covering the text, so an empty result
+      // means no face provides the glyph.
+      peso: (await document.fonts.load('700 12px Inter', '\u20B1')).length > 0,
+      // JetBrains Mono has no ₱, so it must not claim one: that text is meant
+      // to fall back through the font stack. A face here means a bogus subset.
+      monoPeso: (await document.fonts.load('500 12px "JetBrains Mono"', '\u20B1')).length,
+      enye: (await document.fonts.load('400 12px Inter', 'Pe\u00F1a')).length > 0,
+      // Control: a glyph no subset contains must match no face, so a trivially
+      // true assertion can't pass this check.
+      unsupported: (await document.fonts.load('400 12px Inter', '\u6F22')).length
     };
   });
   ok('variable weight axis works (Inter width, mono ink)',
      typo.inter900 > typo.inter400 && typo.monoInk.w800 > typo.monoInk.w400,
      JSON.stringify(typo));
-  ok('peso sign + enye available in subset fonts', typo.peso && typo.enye, JSON.stringify(typo));
+  ok('peso + enye in subset fonts, unsupported glyph absent',
+     typo.peso && typo.enye && typo.unsupported === 0 && typo.monoPeso === 0,
+     JSON.stringify(typo));
+
+  // Every font the stylesheet declares must actually parse. A subset built for
+  // glyphs its source font lacks downloads with HTTP 200 and then fails to
+  // load, which is invisible until the text that needs it is rendered.
+  const fontFiles = await page.evaluate(async () => {
+    const css = await (await fetch('assets/app.css')).text();
+    const refs = [...new Set([...css.matchAll(/url\(([^)]*\.woff2)\)/g)]
+      .map(m => m[1].replace(/['"]/g, '').replace(/^\.\//, '')))];
+    const out = [];
+    for (const ref of refs) {
+      const href = new URL(ref, new URL('assets/', location.href)).href;
+      try {
+        await new FontFace('probe', `url(${href})`).load();
+        out.push({ ref, ok: true });
+      } catch (err) {
+        out.push({ ref, ok: false, error: err.name + ': ' + err.message });
+      }
+    }
+    return out;
+  });
+  const badFonts = fontFiles.filter(f => !f.ok);
+  ok('every declared font file loads', fontFiles.length > 0 && badFonts.length === 0,
+     badFonts.length ? JSON.stringify(badFonts)
+                     : `${fontFiles.length} font files load cleanly`);
 
   // Icons
   const iconStats = await page.evaluate(() => {

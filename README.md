@@ -65,7 +65,7 @@ manifest.webmanifest    install metadata, shortcuts, screenshots
 offline.html            fallback shown if the shell was never cached
 assets/app.css          compiled Tailwind + self-hosted @font-face  (generated)
 assets/lucide.min.js    44-icon subset of lucide, 10 KB             (generated)
-assets/fonts/           Inter + JetBrains Mono variable woff2, 72 KB (generated)
+assets/fonts/           Inter + JetBrains Mono variable woff2, 62 KB (generated)
 icons/                  app, maskable, apple-touch and shortcut icons (generated)
 screenshots/            install-dialog screenshots used by the manifest
 build/                  Tailwind input + config for the CSS build
@@ -116,9 +116,10 @@ With the app served on `http://127.0.0.1:8080/`:
 npm install --no-save playwright && node tests/pwa-test.js
 ```
 
-28 checks covering the service worker and precache, offline launch, the offline
+29 checks covering the service worker and precache, offline launch, the offline
 SOS queue and its flush on reconnect, session persistence across relaunch,
-install affordances, manifest shortcuts, fonts and icons.
+install affordances, manifest shortcuts, fonts and icons — including that every
+font file the stylesheet declares actually parses.
 
 Two cheaper checks guard the things that only break offline, and are worth
 running before you commit a change to the assets:

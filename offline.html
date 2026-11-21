@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#090d16" />
+  <title>Offline — E-mergency</title>
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="assets/app.css" />
+</head>
+<body class="min-h-screen flex items-center justify-center p-6 bg-[#090d16] text-slate-100">
+  <main class="max-w-md w-full text-center space-y-5">
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-red-600 to-rose-700 flex items-center justify-center shadow-lg shadow-red-900/40">
+      <span class="text-3xl font-black text-white">E</span>
+    </div>
+    <div class="space-y-2">
+      <h1 class="text-xl font-black tracking-tight">
+        <span class="text-red-500">E</span>-mergency is offline
+      </h1>
+      <p class="text-sm text-slate-400 leading-relaxed">
+        The app shell could not be loaded from this device's cache. Open the app once
+        while connected and it will stay available offline from then on.
+      </p>
+    </div>
+    <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-left space-y-1">
+      <div class="text-[11px] font-extrabold uppercase tracking-wider text-amber-300">
+        In a real emergency right now
+      </div>
+      <p class="text-xs text-amber-100/90 leading-relaxed">
+        Do not wait for this app. Call your local emergency hotline directly —
+        <strong>911</strong> nationwide in the Philippines, or your municipal
+        MDRRMO / PNP / BFP station.
+      </p>
+    </div>
+    <button onclick="location.reload()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm font-bold text-white transition">
+      Try again
+    </button>
+  </main>
+</body>
+</html>

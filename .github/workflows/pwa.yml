@@ -4,8 +4,10 @@
 name: PWA checks
 
 on:
+  # Pushes to a branch with an open PR are already covered by pull_request,
+  # so push only triggers on main — otherwise every push runs CI twice.
   push:
-    branches: [main, 'claude/**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

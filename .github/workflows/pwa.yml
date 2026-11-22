@@ -4,11 +4,11 @@
 name: PWA checks
 
 on:
-  # Pushes to a branch with an open PR are already covered by pull_request,
-  # so push only triggers on main — otherwise every push runs CI twice.
-  push:
-    branches: [main]
+  # Pushes to a branch with an open PR are already covered by pull_request.
+  # Pushes to main are covered by the Pages deploy workflow, which calls this
+  # one before publishing — so neither path runs the suite twice.
   pull_request:
+  workflow_call:
   workflow_dispatch:
 
 permissions:

@@ -1,0 +1,68 @@
+# Publishes the app to GitHub Pages, but only after the PWA checks pass, so a
+# broken offline shell cannot reach the live site. Uses the "GitHub Actions"
+# Pages source; configure-pages enables it if it is not switched on yet.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/pwa.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # Ship the app, not the repo: everything except source control, CI,
+      # build inputs and tooling. Exclusions rather than an allow-list, so a
+      # new asset directory is published without editing this file.
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          tar -cf - \
+            --exclude='./.git' \
+            --exclude='./.github' \
+            --exclude='./.gitignore' \
+            --exclude='./node_modules' \
+            --exclude='./build' \
+            --exclude='./tools' \
+            --exclude='./tests' \
+            --exclude='./README.md' \
+            --exclude='./_site' \
+            . | tar -xf - -C _site
+          # Serve the files verbatim if the Pages source is ever switched to a
+          # branch, which would otherwise run them through Jekyll.
+          touch _site/.nojekyll
+          echo "Publishing $(find _site -type f | wc -l) files:"
+          find _site -type f | sort | sed 's/^/  /'
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
